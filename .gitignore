@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.venv*/
+__pycache__/
+*.py[cod]
+*.sqlite3
+backend/workspace/
+.pytest_cache/
+.coverage
+node_modules/
+dist/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts

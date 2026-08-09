@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,600&display=swap');
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #292d2a;
+  background: #eeefe8;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+main {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px 20px;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(210, 160, 92, .17), transparent 28%),
+    radial-gradient(circle at 90% 80%, rgba(87, 116, 92, .16), transparent 30%);
+}
+
+.todo-card {
+  width: min(720px, 100%);
+  min-height: 620px;
+  padding: 48px;
+  border: 1px solid rgba(50, 57, 51, .1);
+  border-radius: 28px;
+  background: rgba(251, 251, 247, .92);
+  box-shadow: 0 28px 80px rgba(38, 43, 39, .12);
+  backdrop-filter: blur(18px);
+}
+
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 34px; }
+.eyebrow { margin: 0 0 6px; color: #728073; font-size: 12px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; }
+h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(45px, 8vw, 64px); line-height: .95; letter-spacing: -.03em; }
+.date { margin: 12px 0 0; color: #7b817c; font-size: 14px; }
+.count { width: 72px; height: 72px; display: grid; place-content: center; text-align: center; border-radius: 50%; background: #e3eadf; color: #48604c; }
+.count strong { font-family: 'Newsreader', serif; font-size: 27px; line-height: 23px; }
+.count span { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+
+.add-form { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border: 1px solid #dfe2da; border-radius: 15px; background: white; transition: box-shadow .2s, border-color .2s; }
+.add-form:focus-within { border-color: #819585; box-shadow: 0 0 0 4px rgba(89, 117, 94, .1); }
+.add-form span { color: #69806d; font-size: 22px; }
+.add-form input { min-width: 0; flex: 1; padding: 10px 0; border: 0; outline: 0; color: #292d2a; background: transparent; }
+.add-form input::placeholder { color: #a1a59f; }
+.add-form button { padding: 11px 17px; border: 0; border-radius: 10px; background: #465e4b; color: white; font-weight: 600; }
+.add-form button:disabled { opacity: .45; cursor: default; }
+
+nav { display: flex; gap: 5px; margin: 28px 0 15px; }
+nav button { padding: 7px 13px; border: 0; border-radius: 20px; background: transparent; color: #7d837d; font-size: 13px; text-transform: capitalize; }
+nav button.active { background: #e4e9e1; color: #405345; font-weight: 600; }
+
+.list { border-top: 1px solid #e6e6df; }
+.todo { display: flex; align-items: center; min-height: 66px; gap: 13px; border-bottom: 1px solid #ecece6; }
+.check { flex: 0 0 auto; width: 23px; height: 23px; display: grid; place-content: center; padding: 0; border: 1.5px solid #aeb7ad; border-radius: 50%; background: transparent; color: white; font-size: 13px; }
+.completed .check { border-color: #708673; background: #708673; }
+.todo-title { flex: 1; padding: 20px 0; border: 0; background: transparent; color: #343935; text-align: left; }
+.completed .todo-title { color: #a2a6a1; text-decoration: line-through; }
+.actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.todo:hover .actions, .todo:focus-within .actions { opacity: 1; }
+.actions button { padding: 7px; border: 0; background: transparent; color: #858b85; font-size: 12px; }
+.actions button:last-child:hover { color: #a34e45; }
+.empty { padding: 80px 10px; color: #969b95; text-align: center; }
+.empty span { display: inline-grid; width: 42px; height: 42px; place-content: center; border: 1px solid #d7dbd4; border-radius: 50%; color: #8fa08f; }
+.error { padding: 10px 12px; border-radius: 8px; background: #f8e9e6; color: #9a443a; font-size: 13px; }
+
+@media (max-width: 600px) {
+  main { padding: 0; place-items: stretch; }
+  .todo-card { min-height: 100vh; padding: 38px 22px; border: 0; border-radius: 0; }
+  .date { max-width: 190px; }
+  .actions { opacity: 1; }
+  .actions button:first-child { display: none; }
+}
