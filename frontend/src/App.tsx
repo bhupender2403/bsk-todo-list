@@ -1,24 +1,89 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { api, type Todo } from './api'
+import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { api, getTodoStatus, type Todo } from './api'
+import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>([])
+  const [types, setTypes] = useState<string[]>([])
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [selectedType, setSelectedType] = useState('General')
+  const [newType, setNewType] = useState('')
+  const [creatingType, setCreatingType] = useState(false)
+  const [parentName, setParentName] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [durationDays, setDurationDays] = useState('')
+  const [durationHours, setDurationHours] = useState('')
+  const [dependencyQuery, setDependencyQuery] = useState('')
+  const [dependencyIds, setDependencyIds] = useState<number[]>([])
   const [filter, setFilter] = useState<Filter>('all')
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [query, setQuery] = useState('')
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [detailPosition, setDetailPosition] = useState({ x: 360, y: 120 })
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const dragOffset = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
-    api.list().then(setTodos).catch(showError).finally(() => setLoading(false))
+    Promise.all([api.list(), api.listTypes()])
+      .then(([items, todoTypes]) => {
+        setTodos(items)
+        setTypes(todoTypes.map((item) => item.name))
+        setSelectedId(items[0]?.id ?? null)
+      })
+      .catch(showError)
+      .finally(() => setLoading(false))
   }, [])
 
-  const visibleTodos = useMemo(
-    () => todos.filter((todo) => filter === 'all' || (filter === 'completed') === todo.completed),
-    [todos, filter],
-  )
-  const remaining = todos.filter((todo) => !todo.completed).length
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setAddModalOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [])
+
+  const visibleTodos = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase()
+    return todos.filter((todo) => {
+      const status = getTodoStatus(todo)
+      const matchesStatus = filter === 'all' || (filter === 'completed' ? status === 'completed' : status !== 'completed')
+      return matchesStatus && `${todo.title} ${todo.description}`.toLocaleLowerCase().includes(search)
+    })
+  }, [todos, filter, query])
+
+  const dashboardTodos = useMemo(() => {
+    const byId = new Map(todos.map((todo) => [todo.id, todo]))
+    const related = new Map(todos.map((todo) => [todo.id, new Set<number>()]))
+    for (const todo of todos) {
+      const linked = [todo.parent_id, ...todo.dependency_ids].filter((id): id is number => id !== null && byId.has(id))
+      for (const id of linked) {
+        related.get(todo.id)?.add(id)
+        related.get(id)?.add(todo.id)
+      }
+    }
+    const included = new Set(todos.filter((todo) => ['scheduled', 'running'].includes(getTodoStatus(todo))).map((todo) => todo.id))
+    const queue = [...included]
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      for (const id of related.get(queue[cursor]) ?? []) {
+        if (!included.has(id)) {
+          included.add(id)
+          queue.push(id)
+        }
+      }
+    }
+    return todos.filter((todo) => included.has(todo.id))
+  }, [todos])
+
+  const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
+  const remaining = todos.filter((todo) => getTodoStatus(todo) !== 'completed').length
 
   function showError(reason: unknown) {
     setError(reason instanceof Error ? reason.message : 'Something went wrong')
@@ -29,38 +94,176 @@ export default function App() {
     if (!title.trim()) return
     setError('')
     try {
-      const todo = await api.create(title)
-      setTodos((current) => [todo, ...current])
+      let typeName = selectedType
+      if (creatingType) {
+        typeName = newType
+      }
+      const parent = parentName.trim()
+        ? todos.find((item) => item.title.toLocaleLowerCase() === parentName.trim().toLocaleLowerCase())
+        : null
+      if (parentName.trim() && !parent) throw new Error('Select a valid parent task by name')
+      const minutes = (Number(durationDays) || 0) * 1440 + (Number(durationHours) || 0) * 60
+      const input = {
+        title,
+        description,
+        todo_type: typeName,
+        parent_id: parent?.id ?? null,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        expected_duration_minutes: minutes || null,
+        dependency_ids: dependencyIds,
+        is_running: editingId === null ? false : (todos.find((item) => item.id === editingId)?.is_running ?? false),
+      }
+      const todo = editingId === null
+        ? await api.create(input)
+        : await api.update(editingId, input)
+      if (creatingType) {
+        typeName = todo.todo_type
+        setTypes((current) => current.includes(typeName) ? current : [...current, typeName].sort((a, b) => a.localeCompare(b)))
+        setSelectedType(typeName)
+      }
+      setTodos((current) => editingId === null
+        ? [todo, ...current]
+        : current.map((item) => item.id === todo.id ? todo : item))
+      setSelectedId(todo.id)
       setTitle('')
+      setDescription('')
+      setQuery('')
+      setFilter('all')
+      setAddModalOpen(false)
+      setCreatingType(false)
+      setNewType('')
+      setParentName('')
+      setStartTime('')
+      setEndTime('')
+      setDurationDays('')
+      setDurationHours('')
+      setDependencyQuery('')
+      setDependencyIds([])
+      setEditingId(null)
     } catch (reason) {
       showError(reason)
     }
   }
 
-  async function toggleTodo(todo: Todo) {
+  function openAddModal() {
+    setError('')
+    setEditingId(null)
+    setTitle('')
+    setDescription('')
+    setSelectedType(types[0] ?? 'General')
+    setCreatingType(false)
+    setNewType('')
+    setParentName('')
+    setStartTime('')
+    setEndTime('')
+    setDurationDays('')
+    setDurationHours('')
+    setDependencyQuery('')
+    setDependencyIds([])
+    setAddModalOpen(true)
+  }
+
+  function openEditModal(todo: Todo) {
+    const duration = todo.expected_duration_minutes ?? 0
+    setError('')
+    setEditingId(todo.id)
+    setTitle(todo.title)
+    setDescription(todo.description)
+    setSelectedType(todo.todo_type)
+    setCreatingType(false)
+    setNewType('')
+    setParentName(todo.parent_id ? taskName(todo.parent_id) : '')
+    setStartTime(todo.start_time?.slice(0, 16) ?? '')
+    setEndTime(todo.end_time?.slice(0, 16) ?? '')
+    setDurationDays(duration ? String(Math.floor(duration / 1440)) : '')
+    setDurationHours(duration ? String(Math.floor((duration % 1440) / 60)) : '')
+    setDependencyQuery('')
+    setDependencyIds(todo.dependency_ids)
+    setDetailModalOpen(false)
+    setAddModalOpen(true)
+  }
+
+  function openTaskDetail(id: number) {
+    setSelectedId(id)
+    setDetailPosition({
+      x: Math.max(20, (window.innerWidth - 620) / 2),
+      y: Math.max(20, (window.innerHeight - 570) / 2),
+    })
+    setDetailModalOpen(true)
+  }
+
+  function startDragging(event: ReactPointerEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest('button')) return
+    dragOffset.current = { x: event.clientX - detailPosition.x, y: event.clientY - detailPosition.y }
+    function move(pointerEvent: PointerEvent) {
+      setDetailPosition({
+        x: Math.max(8, Math.min(window.innerWidth - 160, pointerEvent.clientX - dragOffset.current.x)),
+        y: Math.max(8, Math.min(window.innerHeight - 70, pointerEvent.clientY - dragOffset.current.y)),
+      })
+    }
+    function stop() {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'parent_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
     try {
-      const updated = await api.update(todo.id, { completed: !todo.completed })
+      const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
     } catch (reason) {
       showError(reason)
     }
   }
 
-  async function editTodo(todo: Todo) {
-    const nextTitle = window.prompt('Edit todo', todo.title)?.trim()
-    if (!nextTitle || nextTitle === todo.title) return
-    try {
-      const updated = await api.update(todo.id, { title: nextTitle })
-      setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
-    } catch (reason) {
-      showError(reason)
+  function addDependencyByName() {
+    const dependency = todos.find((item) => item.title.toLocaleLowerCase() === dependencyQuery.trim().toLocaleLowerCase())
+    if (!dependency) {
+      setError('Select a valid dependency by name')
+      return
+    }
+    setDependencyIds((current) => current.includes(dependency.id) ? current : [...current, dependency.id])
+    setDependencyQuery('')
+    setError('')
+  }
+
+  function taskName(id: number | null) {
+    if (id === null) return 'None'
+    return todos.find((item) => item.id === id)?.title ?? `Task #${id}`
+  }
+
+  function formatDateTime(value: string | null) {
+    return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not set'
+  }
+
+  function formatDuration(minutes: number | null) {
+    if (!minutes) return 'Not set'
+    const days = Math.floor(minutes / 1440)
+    const hours = Math.floor((minutes % 1440) / 60)
+    return [days && `${days}d`, hours && `${hours}h`].filter(Boolean).join(' ') || `${minutes}m`
+  }
+
+  function advanceTask(todo: Todo) {
+    const status = getTodoStatus(todo)
+    if (status === 'completed') {
+      updateTodo(todo, { end_time: null, completed: false, is_running: false })
+    } else if (status === 'running') {
+      updateTodo(todo, { end_time: new Date().toISOString(), completed: true, is_running: false })
+    } else {
+      updateTodo(todo, { is_running: true })
     }
   }
 
-  async function deleteTodo(id: number) {
+  async function deleteTodo(todo: Todo) {
     try {
-      await api.remove(id)
-      setTodos((current) => current.filter((todo) => todo.id !== id))
+      await api.remove(todo.id)
+      const remainingTodos = todos.filter((item) => item.id !== todo.id)
+      setTodos(remainingTodos)
+      setSelectedId(remainingTodos[0]?.id ?? null)
+      setDetailModalOpen(false)
     } catch (reason) {
       showError(reason)
     }
@@ -68,67 +271,153 @@ export default function App() {
 
   return (
     <main>
-      <section className="todo-card">
-        <header>
-          <div>
-            <p className="eyebrow">My workspace</p>
-            <h1>Today</h1>
-            <p className="date">{new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date())}</p>
-          </div>
-          <div className="count" aria-label={`${remaining} tasks remaining`}>
-            <strong>{remaining}</strong>
-            <span>left</span>
-          </div>
-        </header>
-
-        <form className="add-form" onSubmit={addTodo}>
-          <span aria-hidden="true">＋</span>
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="What needs to be done?"
-            aria-label="New todo title"
-            maxLength={200}
-          />
-          <button type="submit" disabled={!title.trim()}>Add task</button>
-        </form>
-
-        <nav aria-label="Todo filters">
-          {(['all', 'active', 'completed'] as Filter[]).map((name) => (
-            <button className={filter === name ? 'active' : ''} onClick={() => setFilter(name)} key={name}>
-              {name}
-            </button>
-          ))}
-        </nav>
-
-        {error && <p className="error" role="alert">{error}</p>}
-
-        <div className="list" aria-live="polite">
-          {loading ? (
-            <p className="empty">Loading your tasks…</p>
-          ) : visibleTodos.length === 0 ? (
-            <div className="empty">
-              <span>✓</span>
-              <p>{filter === 'completed' ? 'No completed tasks yet.' : 'Nothing here. Enjoy the quiet.'}</p>
+      <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+        <aside className="sidebar">
+          <div className="sidebar-heading">
+            <div>
+              <p className="eyebrow">My workspace</p>
+              <h2>Tasks</h2>
             </div>
-          ) : (
-            visibleTodos.map((todo) => (
-              <article className={todo.completed ? 'todo completed' : 'todo'} key={todo.id}>
-                <button className="check" onClick={() => toggleTodo(todo)} aria-label={`Mark ${todo.title} ${todo.completed ? 'active' : 'complete'}`}>
-                  {todo.completed && '✓'}
-                </button>
-                <button className="todo-title" onDoubleClick={() => editTodo(todo)} onClick={() => toggleTodo(todo)}>
-                  {todo.title}
-                </button>
-                <div className="actions">
-                  <button onClick={() => editTodo(todo)} aria-label={`Edit ${todo.title}`}>Edit</button>
-                  <button onClick={() => deleteTodo(todo.id)} aria-label={`Delete ${todo.title}`}>Delete</button>
-                </div>
-              </article>
-            ))
-          )}
-        </div>
+            <span>{todos.length}</span>
+          </div>
+
+          <label className="search">
+            <span aria-hidden="true">⌕</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tasks…" aria-label="Search tasks" />
+            {query && <button onClick={() => setQuery('')} aria-label="Clear search">×</button>}
+          </label>
+
+          <nav aria-label="Task filters">
+            {(['all', 'active', 'completed'] as Filter[]).map((name) => (
+              <button className={filter === name ? 'active' : ''} onClick={() => setFilter(name)} key={name}>{name}</button>
+            ))}
+          </nav>
+
+          <div className="task-cards" aria-live="polite">
+            {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
+              <p className="sidebar-empty">No matching tasks.</p>
+            ) : visibleTodos.map((todo) => (
+              <button className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''}`} onClick={() => openTaskDetail(todo.id)} key={todo.id}>
+                <span className="card-copy">
+                  <strong>{todo.title}</strong>
+                  <small>#{todo.id} · {todo.todo_type} · {getTodoStatus(todo)}</small>
+                </span>
+                {todo.completed && <span className="card-check">✓</span>}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="workspace">
+          <header>
+            <div>
+              <p className="eyebrow">My life workspace</p>
+              <h1>Task dependencies</h1>
+              <p className="subtitle">See how your work connects.</p>
+            </div>
+            <div className="header-actions">
+              <button className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-expanded={sidebarOpen}>
+                <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
+              </button>
+              <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
+              <div className="count" aria-label={`${remaining} tasks remaining`}><strong>{remaining}</strong><span>open</span></div>
+            </div>
+          </header>
+
+          {error && <p className="error" role="alert">{error}</p>}
+
+          <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={openTaskDetail} />
+        </section>
       </section>
+
+      {detailModalOpen && selectedTodo && (
+        <section className="task-floating-modal" style={{ left: detailPosition.x, top: detailPosition.y }} role="dialog" aria-modal="false" aria-labelledby="floating-task-title">
+          <div className="task-modal-handle" onPointerDown={startDragging}>
+            <span>Task #{selectedTodo.id} · {getTodoStatus(selectedTodo)}</span>
+            <button onClick={() => setDetailModalOpen(false)} aria-label="Close task details">×</button>
+          </div>
+          <article className={`task-detail ${getTodoStatus(selectedTodo) === 'completed' ? 'completed' : ''}`}>
+            <h2 id="floating-task-title">{selectedTodo.title}</h2>
+            <p className="created-date">Created {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(selectedTodo.created_at))}</p>
+            <p className={selectedTodo.description ? 'task-description' : 'task-description empty'}>{selectedTodo.description || 'No description added.'}</p>
+            <div className="detail-fields">
+              <label>Type<select value={selectedTodo.todo_type} onChange={(event) => updateTodo(selectedTodo, { todo_type: event.target.value })}>{types.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
+              <div><span>Parent</span><strong>{taskName(selectedTodo.parent_id)}</strong></div>
+              <div><span>Starts</span><strong>{formatDateTime(selectedTodo.start_time)}</strong></div>
+              <div><span>Ends</span><strong>{formatDateTime(selectedTodo.end_time)}</strong></div>
+              <div><span>Expected duration</span><strong>{formatDuration(selectedTodo.expected_duration_minutes)}</strong></div>
+              <div className="dependency-summary"><span>Dependencies</span><strong>{selectedTodo.dependency_ids.length ? selectedTodo.dependency_ids.map(taskName).join(', ') : 'None'}</strong></div>
+            </div>
+            <div className="detail-actions">
+              <button className="primary" onClick={() => advanceTask(selectedTodo)}>{getTodoStatus(selectedTodo) === 'completed' ? 'Reopen task' : getTodoStatus(selectedTodo) === 'running' ? 'Finish work' : 'Start work'}</button>
+              <button onClick={() => openEditModal(selectedTodo)}>Edit details</button>
+              <button className="danger" onClick={() => deleteTodo(selectedTodo)}>Delete</button>
+            </div>
+          </article>
+        </section>
+      )}
+
+      {addModalOpen && (
+        <div className="modal-backdrop" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setAddModalOpen(false)
+        }}>
+          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="add-task-title">
+            <div className="modal-heading">
+              <div><p className="eyebrow">{editingId === null ? 'New task' : `Task #${editingId}`}</p><h2 id="add-task-title">{editingId === null ? 'Add a task' : 'Edit task'}</h2></div>
+              <button onClick={() => setAddModalOpen(false)} aria-label="Close add task modal">×</button>
+            </div>
+            <form onSubmit={addTodo}>
+              {error && <p className="error" role="alert">{error}</p>}
+              <label>What do you want to accomplish?
+                <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add something meaningful…" maxLength={200} />
+              </label>
+              <label>Description <small>Optional — add context, notes, or acceptance criteria</small>
+                <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe this task…" maxLength={5000} rows={4} />
+              </label>
+              <label>Type
+                <div className="type-control">
+                  {creatingType ? (
+                    <input value={newType} onChange={(event) => setNewType(event.target.value)} placeholder="Enter a new type…" maxLength={60} />
+                  ) : (
+                    <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
+                      {types.map((item) => <option value={item} key={item}>{item}</option>)}
+                    </select>
+                  )}
+                  <button type="button" onClick={() => { setCreatingType((current) => !current); setNewType('') }}>
+                    {creatingType ? 'Use existing' : '+ New type'}
+                  </button>
+                </div>
+              </label>
+              <label>Parent task <small>Optional — search by exact name</small>
+                <input list="parent-tasks" value={parentName} onChange={(event) => setParentName(event.target.value)} placeholder="None" />
+                <datalist id="parent-tasks">{todos.filter((item) => item.id !== editingId).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
+              </label>
+              <div className="form-row">
+                <label>Start time<input type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label>
+                <label>End time<input type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label>
+              </div>
+              <label>Expected duration
+                <div className="duration-control">
+                  <span><input type="number" min="0" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} placeholder="0" /> days</span>
+                  <span><input type="number" min="0" value={durationHours} onChange={(event) => setDurationHours(event.target.value)} placeholder="0" /> hours</span>
+                </div>
+              </label>
+              <label>Dependencies <small>Search and add any tasks that must come first</small>
+                <div className="dependency-control">
+                  <input list="dependency-tasks" value={dependencyQuery} onChange={(event) => setDependencyQuery(event.target.value)} placeholder="Search task name…" />
+                  <datalist id="dependency-tasks">{todos.filter((item) => item.id !== editingId && !dependencyIds.includes(item.id)).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
+                  <button type="button" onClick={addDependencyByName} disabled={!dependencyQuery.trim()}>Add</button>
+                </div>
+                {dependencyIds.length > 0 && <div className="dependency-chips">{dependencyIds.map((id) => <button type="button" onClick={() => setDependencyIds((current) => current.filter((item) => item !== id))} key={id}>{taskName(id)} ×</button>)}</div>}
+              </label>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setAddModalOpen(false)}>Cancel</button>
+                <button className="primary" type="submit" disabled={!title.trim() || (creatingType && !newType.trim())}>{editingId === null ? 'Add task' : 'Save changes'}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </main>
   )
 }

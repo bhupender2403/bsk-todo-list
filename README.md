@@ -1,10 +1,16 @@
 # BSK Todo List
 
-A full-stack todo application with a FastAPI/SQLite backend and a React/TypeScript frontend.
+A full-stack life-planning application with a FastAPI/SQLite backend and a React/TypeScript frontend.
 
 ## Features
 
 - Create, edit, complete, and delete todos
+- Add detailed descriptions and notes to tasks
+- Assign reusable types to todos and create new types while adding a task
+- Track visible task IDs, optional parent tasks, schedules, and expected duration
+- Link tasks through searchable dependencies
+- Explore parent and dependency relationships in an interactive DAG
+- Track pending, scheduled, running, and completed task lifecycle states
 - Filter by all, active, or completed
 - Persistent SQLite storage
 - Configurable backend workspace directory
@@ -12,6 +18,24 @@ A full-stack todo application with a FastAPI/SQLite backend and a React/TypeScri
 - REST API with interactive documentation
 
 ## Run locally
+
+### Start everything
+
+After installing the backend and frontend dependencies once, start the whole
+system from the project root:
+
+```bash
+./start.sh
+```
+
+Pass a custom backend workspace when needed:
+
+```bash
+./start.sh --workspace ~/Documents/personal-todos
+```
+
+Run `./start.sh --help` to see host, port, and reload options. Press `Ctrl+C` to
+stop both servers.
 
 ### Backend
 
@@ -75,6 +99,8 @@ npm run build
 | --- | --- | --- |
 | `GET` | `/api/todos` | List todos |
 | `GET` | `/api/workspace` | Show the active workspace |
+| `GET` | `/api/todo-types` | List reusable todo types |
+| `POST` | `/api/todo-types` | Create a todo type |
 | `POST` | `/api/todos` | Create a todo |
 | `PATCH` | `/api/todos/{id}` | Update a todo |
 | `DELETE` | `/api/todos/{id}` | Delete a todo |

@@ -1,9 +1,44 @@
 export type Todo = {
   id: number
   title: string
+  description: string
+  todo_type: string
   completed: boolean
+  parent_id: number | null
+  start_time: string | null
+  end_time: string | null
+  expected_duration_minutes: number | null
+  dependency_ids: number[]
+  is_running: boolean
   created_at: string
   updated_at: string
+}
+
+export type TodoInput = {
+  title: string
+  description: string
+  todo_type: string
+  parent_id: number | null
+  start_time: string | null
+  end_time: string | null
+  expected_duration_minutes: number | null
+  dependency_ids: number[]
+  is_running: boolean
+}
+
+export type TodoType = {
+  id: number
+  name: string
+  created_at: string
+}
+
+export type TodoStatus = 'pending' | 'scheduled' | 'running' | 'completed'
+
+export function getTodoStatus(todo: Todo): TodoStatus {
+  if (todo.end_time) return 'completed'
+  if (todo.is_running) return 'running'
+  if (todo.start_time) return 'scheduled'
+  return 'pending'
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -20,9 +55,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
-  create: (title: string) =>
-    request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify({ title }) }),
-  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'completed'>>) =>
+  listTypes: () => request<TodoType[]>('/api/todo-types'),
+  createType: (name: string) =>
+    request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
+  create: (input: TodoInput) =>
+    request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'parent_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
     request<Todo>(`/api/todos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),
