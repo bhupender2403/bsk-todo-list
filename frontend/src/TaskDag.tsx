@@ -8,12 +8,13 @@ type Props = {
 }
 
 type Edge = { from: number; to: number }
-type NodePosition = { todo: Todo; x: number; y: number }
+type NodePosition = { todo: Todo; x: number; y: number; width: number }
 type ParentGroup = { id: number; x: number; y: number; width: number; height: number }
-const NODE_WIDTH = 270
 const NODE_HEIGHT = 52
 const GROUP_PADDING = 14
 const DATE_STEP = 110
+const DAY_BAR_GAP = 12
+const MIN_NODE_WIDTH = 52
 const ROW_GAP = 22
 
 export default function TaskDag({ todos, selectedId, onSelect }: Props) {
@@ -54,19 +55,19 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
             const from = graph.byId.get(edge.from)
             const to = graph.byId.get(edge.to)
             if (!from || !to) return null
-            const startX = from.x + NODE_WIDTH / 2
+            const startX = from.x + from.width / 2
             const startY = from.y + NODE_HEIGHT
-            const endX = to.x + NODE_WIDTH / 2
+            const endX = to.x + to.width / 2
             const endY = to.y
             const vertical = Math.max(24, Math.abs(endY - startY) / 2)
             return <path className="dag-edge dependency" d={`M ${startX} ${startY} C ${startX} ${startY + vertical}, ${endX} ${endY - vertical}, ${endX} ${endY}`} markerEnd="url(#dag-arrow-dependency)" key={`${edge.from}-${edge.to}`} />
           })}
 
-          {graph.nodes.map(({ todo, x, y }) => (
+          {graph.nodes.map(({ todo, x, y, width }) => (
             <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''}`} onClick={() => onSelect(todo.id)} key={todo.id}>
-              <rect x={x} y={y} width={NODE_WIDTH} height={NODE_HEIGHT} rx="12" />
-              <text className="dag-title" x={x + 14} y={y + 31}>{truncate(`#${todo.id} · ${todo.title} · ${todo.todo_type}`, 39)}</text>
-              {getTodoStatus(todo) === 'completed' && <text className="dag-check" x={x + NODE_WIDTH - 22} y={y + 31}>✓</text>}
+              <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
+              <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
+              {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}
               <title>Task #{todo.id}: {todo.title}</title>
             </g>
           ))}
@@ -114,7 +115,7 @@ function buildTimeline(todos: Todo[], positions?: Map<string, number>) {
   }
   const dates = positions ? Array.from(positions.keys()) : buildDateRange(Array.from(counts.keys()))
   return dates
-    .map((date, index) => ({ date, count: counts.get(date) ?? 0, today: date === today, x: positions?.get(date) ?? 30 + index * DATE_STEP + NODE_WIDTH / 2 }))
+    .map((date, index) => ({ date, count: counts.get(date) ?? 0, today: date === today, x: positions?.get(date) ?? 50 + index * DATE_STEP }))
 }
 
 function buildDateRange(taskDates: string[]) {
@@ -149,6 +150,11 @@ function truncate(value: string, length: number) {
   return value.length > length ? `${value.slice(0, length - 1)}…` : value
 }
 
+function nodeLabel(todo: Todo, width: number) {
+  if (width < 80) return `#${todo.id}`
+  return truncate(`#${todo.id} · ${todo.title} · ${todo.todo_type}`, Math.max(8, Math.floor(width / 7.2) - 2))
+}
+
 function layoutGraph(todos: Todo[]) {
   const byTodoId = new Map(todos.map((todo) => [todo.id, todo]))
   const children = new Map<number, Todo[]>()
@@ -159,8 +165,15 @@ function layoutGraph(todos: Todo[]) {
   }
 
   const today = localDateKey(new Date())
-  const dates = buildDateRange(todos.flatMap((todo) => todo.start_time ? [todo.start_time.slice(0, 10)] : []))
-  const dateX = new Map(dates.map((date, index) => [date, 30 + index * DATE_STEP]))
+  const rangeDates = todos.flatMap((todo) => {
+    const start = todo.start_time?.slice(0, 10) ?? today
+    const values = [start]
+    if (todo.end_time) values.push(todo.end_time.slice(0, 10))
+    else if (todo.expected_duration_minutes) values.push(shiftDate(start, Math.max(0, Math.ceil(todo.expected_duration_minutes / 1440) - 1)))
+    return values
+  })
+  const dates = buildDateRange(rangeDates)
+  const dateX = new Map(dates.map((date, index) => [date, 50 + index * DATE_STEP]))
   const related = new Map(todos.map((todo) => [todo.id, new Set<number>()]))
   for (const todo of todos) {
     for (const id of [todo.parent_id, ...todo.dependency_ids]) {
@@ -193,14 +206,16 @@ function layoutGraph(todos: Todo[]) {
   function place(todo: Todo): NodePosition[] {
     if (placed.has(todo.id)) return []
     placed.add(todo.id)
-    const node = { todo, x: dateX.get(assignedDate.get(todo.id) ?? today) ?? 30, y: 28 + row * (NODE_HEIGHT + ROW_GAP) }
+    const assignedStart = assignedDate.get(todo.id) ?? today
+    const spanDays = taskSpanDays(todo, assignedStart)
+    const node = { todo, x: dateX.get(assignedStart) ?? 50, y: 28 + row * (NODE_HEIGHT + ROW_GAP), width: Math.max(MIN_NODE_WIDTH, spanDays * DATE_STEP - DAY_BAR_GAP) }
     row += 1
     nodes.push(node)
     const subtree = [node]
     for (const child of children.get(todo.id) ?? []) subtree.push(...place(child))
     if (subtree.length > 1) {
       const minX = Math.min(...subtree.map((item) => item.x)) - GROUP_PADDING
-      const maxX = Math.max(...subtree.map((item) => item.x + NODE_WIDTH)) + GROUP_PADDING
+      const maxX = Math.max(...subtree.map((item) => item.x + item.width)) + GROUP_PADDING
       const minY = node.y - GROUP_PADDING
       const maxY = Math.max(...subtree.map((item) => item.y + NODE_HEIGHT)) + GROUP_PADDING
       groups.push({ id: todo.id, x: minX, y: minY, width: maxX - minX, height: maxY - minY })
@@ -224,8 +239,18 @@ function layoutGraph(todos: Todo[]) {
     }
   }
 
-  const width = Math.max(760, (dates.length - 1) * DATE_STEP + NODE_WIDTH + 60)
+  const width = Math.max(760, ...nodes.map((node) => node.x + node.width + 50), (dates.length - 1) * DATE_STEP + 160)
   const height = Math.max(360, ...nodes.map((node) => node.y + NODE_HEIGHT + 28), ...groups.map((group) => group.y + group.height + 28))
-  const timelinePositions = new Map(dates.map((date) => [date, (dateX.get(date) ?? 30) + NODE_WIDTH / 2]))
+  const timelinePositions = new Map(dates.map((date) => [date, dateX.get(date) ?? 50]))
   return { nodes, groups, edges, width, height, timeline: buildTimeline(todos, timelinePositions), byId: new Map(nodes.map((node) => [node.todo.id, node])) }
+}
+
+function taskSpanDays(todo: Todo, startDate: string) {
+  if (todo.end_time) return Math.max(1, differenceInDays(startDate, todo.end_time.slice(0, 10)) + 1)
+  if (todo.expected_duration_minutes) return Math.max(1, todo.expected_duration_minutes / 1440)
+  return 1
+}
+
+function differenceInDays(start: string, end: string) {
+  return Math.round((new Date(`${end}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) / 86400000)
 }
