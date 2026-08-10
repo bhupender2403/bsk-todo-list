@@ -88,6 +88,8 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .timeline-title { position: sticky; left: 12px; top: 8px; z-index: 3; display: inline-block; padding: 3px 7px; border-radius: 5px; background: #e9ece6; color: #7c847d; font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
 .timeline-track { position: absolute; inset: 0; }
 .timeline-track::before { content: ''; position: absolute; right: 30px; left: 30px; top: 31px; height: 1px; background: #ccd3ca; }
+.timeline-tick { position: absolute; top: 27px; z-index: 1; width: 1px; height: 9px; background: #aeb7ad; transform: translateX(-50%); }
+.timeline-tick.major { top: 24px; height: 15px; background: #7f8b80; }
 .timeline-date { position: absolute; top: 25px; z-index: 1; min-width: 76px; display: grid; justify-items: center; gap: 2px; color: #687069; text-align: center; transform: translateX(-50%); }
 .timeline-date i { width: 10px; height: 10px; margin-bottom: 3px; border: 2px solid #f8f9f5; border-radius: 50%; background: #8d9b8e; box-shadow: 0 0 0 1px #8d9b8e; }
 .timeline-date strong { font-size: 11px; font-weight: 600; white-space: nowrap; }

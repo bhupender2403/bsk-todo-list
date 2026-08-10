@@ -79,10 +79,19 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
 }
 
 function DateTimeline({ items, width }: { items: ReturnType<typeof buildTimeline>; width: number }) {
+  const ticks = items.flatMap((item, index) => {
+    const next = items[index + 1]
+    if (!next) return [{ x: item.x, major: true }]
+    return Array.from({ length: 4 }, (_, step) => ({
+      x: item.x + ((next.x - item.x) * step) / 4,
+      major: step === 0,
+    }))
+  })
   return (
     <div className="date-timeline" style={{ width }} aria-label="Task schedule timeline">
       <span className="timeline-title">Timeline</span>
       <div className="timeline-track">
+        {ticks.map((tick, index) => <i className={`timeline-tick ${tick.major ? 'major' : ''}`} style={{ left: tick.x }} key={`${tick.x}-${index}`} />)}
         {items.map((item) => (
           <div className={`timeline-date ${item.today ? 'today' : ''}`} style={{ left: item.x }} key={item.date}>
             <i />
