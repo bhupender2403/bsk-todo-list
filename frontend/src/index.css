@@ -63,6 +63,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .detail-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e5e6df; }
 .detail-fields label { min-width: 0; display: grid; gap: 8px; color: #858b85; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 .detail-fields select { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid #daded7; border-radius: 9px; background: white; color: #465048; text-transform: none; letter-spacing: 0; }
+.detail-fields input { width: 100%; min-width: 0; padding: 9px 38px 9px 9px; border: 1px solid #daded7; border-radius: 9px; background: white; color: #465048; font-size: 11px; text-transform: none; letter-spacing: 0; }
 .detail-fields > div { min-width: 0; display: grid; align-content: start; gap: 8px; }
 .detail-fields > div span { color: #858b85; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
 .detail-fields > div strong { overflow-wrap: anywhere; color: #4b524c; font-size: 13px; font-weight: 500; }
@@ -123,6 +124,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .date-time-control { position: relative; }
 .date-time-control input { padding-right: 43px; cursor: pointer; }
 .date-time-control button { position: absolute; top: 5px; right: 5px; bottom: 5px; width: 34px; display: grid; place-content: center; padding: 0; border: 0; border-radius: 7px; background: #e8ece5; color: #566359; }
+.detail-date-time button { top: 4px; right: 4px; bottom: 4px; width: 30px; }
 .duration-control { display: flex; gap: 14px; }
 .duration-control span { display: flex; align-items: center; gap: 6px; color: #8b918b; font-size: 11px; font-weight: 400; }
 .duration-control input { width: 82px; }

@@ -31,6 +31,7 @@ export default function App() {
   const [error, setError] = useState('')
   const dragOffset = useRef({ x: 0, y: 0 })
   const startTimeInput = useRef<HTMLInputElement>(null)
+  const detailStartTimeInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     Promise.all([api.list(), api.listTypes()])
@@ -353,7 +354,12 @@ export default function App() {
             <div className="detail-fields">
               <label>Type<select value={selectedTodo.todo_type} onChange={(event) => updateTodo(selectedTodo, { todo_type: event.target.value })}>{types.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
               <div><span>Parent</span><strong>{taskName(selectedTodo.parent_id)}</strong></div>
-              <div><span>Starts</span><strong>{formatDateTime(selectedTodo.start_time)}</strong></div>
+              <label>Starts
+                <div className="date-time-control detail-date-time">
+                  <input ref={detailStartTimeInput} type="datetime-local" value={selectedTodo.start_time?.slice(0, 16) ?? ''} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => updateTodo(selectedTodo, { start_time: event.target.value || null })} />
+                  <button type="button" onClick={() => detailStartTimeInput.current?.showPicker?.()} aria-label="Open task start date and time picker">▣</button>
+                </div>
+              </label>
               <div><span>Ends</span><strong>{formatDateTime(selectedTodo.end_time)}</strong></div>
               <div><span>Expected duration</span><strong>{formatDuration(selectedTodo.expected_duration_minutes)}</strong></div>
               <div className="dependency-summary"><span>Dependencies</span><strong>{selectedTodo.dependency_ids.length ? selectedTodo.dependency_ids.map(taskName).join(', ') : 'None'}</strong></div>
