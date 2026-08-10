@@ -30,6 +30,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const dragOffset = useRef({ x: 0, y: 0 })
+  const startTimeInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     Promise.all([api.list(), api.listTypes()])
@@ -402,7 +403,12 @@ export default function App() {
                 <datalist id="parent-tasks">{todos.filter((item) => item.id !== editingId).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
               </label>
               <div className="form-row">
-                <label>Start time<input type="datetime-local" value={startTime} onChange={(event) => setStartTime(event.target.value)} /></label>
+                <label>Start date and time
+                  <div className="date-time-control">
+                    <input ref={startTimeInput} type="datetime-local" value={startTime} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setStartTime(event.target.value)} />
+                    <button type="button" onClick={() => startTimeInput.current?.showPicker?.()} aria-label="Open start date and time picker">▣</button>
+                  </div>
+                </label>
                 <label>End time<input type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label>
               </div>
               <label>Expected duration
