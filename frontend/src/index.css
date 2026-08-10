@@ -84,11 +84,11 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .task-floating-modal .task-detail h2 { margin-top: 0; }
 
 .dag-panel { margin-top: 18px; min-height: calc(100% - 112px); overflow: hidden; border: 1px solid #e0e2da; border-radius: 20px; background: rgba(255,255,255,.6); }
-.date-timeline { display: flex; align-items: stretch; min-height: 76px; border-bottom: 1px solid #e2e5de; background: #f8f9f5; }
-.timeline-title { display: grid; place-content: center; padding: 0 18px; border-right: 1px solid #e2e5de; color: #7c847d; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
-.timeline-track { position: relative; flex: 1; display: flex; align-items: center; gap: 44px; overflow-x: auto; padding: 12px 25px; }
-.timeline-track::before { content: ''; position: absolute; right: 25px; left: 25px; top: 31px; height: 1px; background: #ccd3ca; }
-.timeline-date { position: relative; z-index: 1; min-width: 76px; display: grid; justify-items: center; gap: 2px; color: #687069; text-align: center; }
+.date-timeline { position: relative; height: 76px; border-bottom: 1px solid #e2e5de; background: #f8f9f5; }
+.timeline-title { position: sticky; left: 12px; top: 8px; z-index: 3; display: inline-block; padding: 3px 7px; border-radius: 5px; background: #e9ece6; color: #7c847d; font-size: 9px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.timeline-track { position: absolute; inset: 0; }
+.timeline-track::before { content: ''; position: absolute; right: 30px; left: 30px; top: 31px; height: 1px; background: #ccd3ca; }
+.timeline-date { position: absolute; top: 25px; z-index: 1; min-width: 76px; display: grid; justify-items: center; gap: 2px; color: #687069; text-align: center; transform: translateX(-50%); }
 .timeline-date i { width: 10px; height: 10px; margin-bottom: 3px; border: 2px solid #f8f9f5; border-radius: 50%; background: #8d9b8e; box-shadow: 0 0 0 1px #8d9b8e; }
 .timeline-date strong { font-size: 11px; font-weight: 600; white-space: nowrap; }
 .timeline-date small { color: #9aa09a; font-size: 9px; white-space: nowrap; }
@@ -98,7 +98,9 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .dag-legend span { display: flex; align-items: center; gap: 6px; }
 .dag-legend i { width: 21px; height: 2px; display: inline-block; background: #718a76; }
 .dag-legend .group-key i { width: 18px; height: 12px; border: 1px solid #c6cec3; border-radius: 4px; background: #f2f5ef; }
-.dag-canvas { max-width: 100%; overflow: auto; padding: 10px; }
+.dag-scroll { max-width: 100%; overflow: auto; }
+.dag-aligned-content { min-width: 100%; }
+.dag-canvas { padding: 0; }
 .dag-canvas svg { display: block; }
 .dag-parent-group rect { fill: #f3f5f0; stroke: #cdd5ca; stroke-width: 1.5; }
 .dag-edge { fill: none; stroke: #718a76; stroke-width: 2; opacity: .65; }
