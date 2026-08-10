@@ -83,7 +83,10 @@ export default function App() {
   }, [todos])
 
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
-  const remaining = todos.filter((todo) => getTodoStatus(todo) !== 'completed').length
+  const statusCounts = useMemo(() => todos.reduce(
+    (counts, todo) => ({ ...counts, [getTodoStatus(todo)]: counts[getTodoStatus(todo)] + 1 }),
+    { pending: 0, scheduled: 0, running: 0, completed: 0 },
+  ), [todos])
 
   function showError(reason: unknown) {
     setError(reason instanceof Error ? reason.message : 'Something went wrong')
@@ -320,7 +323,13 @@ export default function App() {
                 <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
               </button>
               <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
-              <div className="count" aria-label={`${remaining} tasks remaining`}><strong>{remaining}</strong><span>open</span></div>
+              <div className="status-counters" aria-label="Task status counts">
+                {(['pending', 'scheduled', 'running', 'completed'] as const).map((status) => (
+                  <div className={`status-count status-${status}`} key={status}>
+                    <strong>{statusCounts[status]}</strong><span>{status}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </header>
 
