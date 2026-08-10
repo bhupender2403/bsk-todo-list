@@ -13,7 +13,7 @@ type ParentGroup = { id: number; x: number; y: number; width: number; height: nu
 const NODE_WIDTH = 270
 const NODE_HEIGHT = 52
 const GROUP_PADDING = 14
-const DATE_GAP = 74
+const DATE_STEP = 110
 const ROW_GAP = 22
 
 export default function TaskDag({ todos, selectedId, onSelect }: Props) {
@@ -112,9 +112,26 @@ function buildTimeline(todos: Todo[], positions?: Map<string, number>) {
     const date = todo.start_time.slice(0, 10)
     counts.set(date, (counts.get(date) ?? 0) + 1)
   }
-  return Array.from(new Set([today, ...counts.keys()]))
-    .sort()
-    .map((date, index) => ({ date, count: counts.get(date) ?? 0, today: date === today, x: positions?.get(date) ?? 30 + index * (NODE_WIDTH + DATE_GAP) + NODE_WIDTH / 2 }))
+  const dates = positions ? Array.from(positions.keys()) : buildDateRange(Array.from(counts.keys()))
+  return dates
+    .map((date, index) => ({ date, count: counts.get(date) ?? 0, today: date === today, x: positions?.get(date) ?? 30 + index * DATE_STEP + NODE_WIDTH / 2 }))
+}
+
+function buildDateRange(taskDates: string[]) {
+  const today = localDateKey(new Date())
+  const defaultStart = shiftDate(today, -7)
+  const defaultEnd = shiftDate(today, 14)
+  const start = [defaultStart, ...taskDates].sort()[0]
+  const end = [defaultEnd, ...taskDates].sort().at(-1) ?? defaultEnd
+  const dates: string[] = []
+  for (let date = start; date <= end; date = shiftDate(date, 1)) dates.push(date)
+  return dates
+}
+
+function shiftDate(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
 }
 
 function localDateKey(date: Date) {
@@ -142,8 +159,8 @@ function layoutGraph(todos: Todo[]) {
   }
 
   const today = localDateKey(new Date())
-  const dates = Array.from(new Set([today, ...todos.flatMap((todo) => todo.start_time ? [todo.start_time.slice(0, 10)] : [])])).sort()
-  const dateX = new Map(dates.map((date, index) => [date, 30 + index * (NODE_WIDTH + DATE_GAP)]))
+  const dates = buildDateRange(todos.flatMap((todo) => todo.start_time ? [todo.start_time.slice(0, 10)] : []))
+  const dateX = new Map(dates.map((date, index) => [date, 30 + index * DATE_STEP]))
   const related = new Map(todos.map((todo) => [todo.id, new Set<number>()]))
   for (const todo of todos) {
     for (const id of [todo.parent_id, ...todo.dependency_ids]) {
@@ -207,7 +224,7 @@ function layoutGraph(todos: Todo[]) {
     }
   }
 
-  const width = Math.max(760, dates.length * (NODE_WIDTH + DATE_GAP) + 30)
+  const width = Math.max(760, (dates.length - 1) * DATE_STEP + NODE_WIDTH + 60)
   const height = Math.max(360, ...nodes.map((node) => node.y + NODE_HEIGHT + 28), ...groups.map((group) => group.y + group.height + 28))
   const timelinePositions = new Map(dates.map((date) => [date, (dateX.get(date) ?? 30) + NODE_WIDTH / 2]))
   return { nodes, groups, edges, width, height, timeline: buildTimeline(todos, timelinePositions), byId: new Map(nodes.map((node) => [node.todo.id, node])) }
