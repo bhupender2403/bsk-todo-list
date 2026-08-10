@@ -21,13 +21,20 @@ const ROOT_GAP = 30
 
 export default function TaskDag({ todos, selectedId, onSelect }: Props) {
   const graph = useMemo(() => layoutGraph(todos), [todos])
+  const timeline = useMemo(() => buildTimeline(todos), [todos])
 
   if (todos.length === 0) {
-    return <div className="dag-empty">Schedule or start a task to show its connected work here.</div>
+    return (
+      <section className="dag-panel">
+        <DateTimeline items={timeline} />
+        <div className="dag-empty">Schedule or start a task to show its connected work here.</div>
+      </section>
+    )
   }
 
   return (
     <section className="dag-panel">
+      <DateTimeline items={timeline} />
       <div className="dag-legend">
         <span><i className="dependency-line" /> Dependency</span>
         <span className="group-key"><i /> Parent with children</span>
@@ -68,6 +75,47 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
       </div>
     </section>
   )
+}
+
+function DateTimeline({ items }: { items: ReturnType<typeof buildTimeline> }) {
+  return (
+    <div className="date-timeline" aria-label="Task schedule timeline">
+      <span className="timeline-title">Timeline</span>
+      <div className="timeline-track">
+        {items.map((item) => (
+          <div className={`timeline-date ${item.today ? 'today' : ''}`} key={item.date}>
+            <i />
+            <strong>{item.today ? 'Today' : formatTimelineDate(item.date)}</strong>
+            <small>{item.count ? `${item.count} task${item.count === 1 ? '' : 's'}` : 'No tasks'}</small>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function buildTimeline(todos: Todo[]) {
+  const today = localDateKey(new Date())
+  const counts = new Map<string, number>()
+  for (const todo of todos) {
+    if (!todo.start_time) continue
+    const date = todo.start_time.slice(0, 10)
+    counts.set(date, (counts.get(date) ?? 0) + 1)
+  }
+  return Array.from(new Set([today, ...counts.keys()]))
+    .sort()
+    .map((date) => ({ date, count: counts.get(date) ?? 0, today: date === today }))
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatTimelineDate(date: string) {
+  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: '2-digit', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
 }
 
 function truncate(value: string, length: number) {
