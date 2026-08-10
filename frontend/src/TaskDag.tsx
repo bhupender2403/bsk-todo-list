@@ -214,6 +214,11 @@ function layoutGraph(todos: Todo[]) {
     const subtree = [node]
     for (const child of children.get(todo.id) ?? []) subtree.push(...place(child))
     if (subtree.length > 1) {
+      const descendantMinX = Math.min(...subtree.slice(1).map((item) => item.x))
+      const descendantMaxX = Math.max(...subtree.slice(1).map((item) => item.x + item.width))
+      const parentRight = node.x + node.width
+      node.x = Math.min(node.x, descendantMinX)
+      node.width = Math.max(parentRight, descendantMaxX) - node.x
       const minX = Math.min(...subtree.map((item) => item.x)) - GROUP_PADDING
       const maxX = Math.max(...subtree.map((item) => item.x + item.width)) + GROUP_PADDING
       const minY = node.y - GROUP_PADDING
