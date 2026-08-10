@@ -88,7 +88,7 @@ function DateTimeline({ items, width }: { items: ReturnType<typeof buildTimeline
     }))
   })
   return (
-    <div className="date-timeline" style={{ width }} aria-label="Task schedule timeline">
+    <div className="date-timeline" style={{ width: '100%', minWidth: width }} aria-label="Task schedule timeline">
       <span className="timeline-title">Timeline</span>
       <div className="timeline-track">
         {ticks.map((tick, index) => <i className={`timeline-tick ${tick.major ? 'major' : ''}`} style={{ left: tick.x }} key={`${tick.x}-${index}`} />)}
