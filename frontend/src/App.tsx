@@ -113,7 +113,7 @@ export default function App() {
         description,
         todo_type: typeName,
         parent_id: parent?.id ?? null,
-        start_time: startTime || null,
+        start_time: startTime ? `${startTime}T00:00:00` : null,
         end_time: endTime || null,
         expected_duration_minutes: minutes || null,
         dependency_ids: dependencyIds,
@@ -179,7 +179,7 @@ export default function App() {
     setCreatingType(false)
     setNewType('')
     setParentName(todo.parent_id ? taskName(todo.parent_id) : '')
-    setStartTime(todo.start_time?.slice(0, 16) ?? '')
+    setStartTime(todo.start_time?.slice(0, 10) ?? '')
     setEndTime(todo.end_time?.slice(0, 16) ?? '')
     setDurationDays(duration ? String(Math.floor(duration / 1440)) : '')
     setDurationHours(duration ? String(Math.floor((duration % 1440) / 60)) : '')
@@ -242,6 +242,10 @@ export default function App() {
 
   function formatDateTime(value: string | null) {
     return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not set'
+  }
+
+  function formatDate(value: string | null) {
+    return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(value)) : 'Not set'
   }
 
   function formatDuration(minutes: number | null) {
@@ -354,10 +358,10 @@ export default function App() {
             <div className="detail-fields">
               <label>Type<select value={selectedTodo.todo_type} onChange={(event) => updateTodo(selectedTodo, { todo_type: event.target.value })}>{types.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
               <div><span>Parent</span><strong>{taskName(selectedTodo.parent_id)}</strong></div>
-              <label>Starts
+              <label>Start date
                 <div className="date-time-control detail-date-time">
-                  <input ref={detailStartTimeInput} type="datetime-local" value={selectedTodo.start_time?.slice(0, 16) ?? ''} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => updateTodo(selectedTodo, { start_time: event.target.value || null })} />
-                  <button type="button" onClick={() => detailStartTimeInput.current?.showPicker?.()} aria-label="Open task start date and time picker">▣</button>
+                  <input ref={detailStartTimeInput} type="date" value={selectedTodo.start_time?.slice(0, 10) ?? ''} title={formatDate(selectedTodo.start_time)} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => updateTodo(selectedTodo, { start_time: event.target.value ? `${event.target.value}T00:00:00` : null })} />
+                  <button type="button" onClick={() => detailStartTimeInput.current?.showPicker?.()} aria-label="Open task start date picker">▣</button>
                 </div>
               </label>
               <div><span>Ends</span><strong>{formatDateTime(selectedTodo.end_time)}</strong></div>
@@ -409,10 +413,10 @@ export default function App() {
                 <datalist id="parent-tasks">{todos.filter((item) => item.id !== editingId).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
               </label>
               <div className="form-row">
-                <label>Start date and time
+                <label>Start date
                   <div className="date-time-control">
-                    <input ref={startTimeInput} type="datetime-local" value={startTime} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setStartTime(event.target.value)} />
-                    <button type="button" onClick={() => startTimeInput.current?.showPicker?.()} aria-label="Open start date and time picker">▣</button>
+                    <input ref={startTimeInput} type="date" value={startTime} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setStartTime(event.target.value)} />
+                    <button type="button" onClick={() => startTimeInput.current?.showPicker?.()} aria-label="Open start date picker">▣</button>
                   </div>
                 </label>
                 <label>End time<input type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label>
