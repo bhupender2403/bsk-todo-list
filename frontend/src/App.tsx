@@ -626,7 +626,19 @@ export default function App() {
             <button className="clear-chat" type="button" onClick={clearChat} disabled={chatMessages.length === 0 && !chatInput} aria-label="Clear chat">Clear chat</button>
           </div>
           <div className="chat-composer-row">
-            <textarea ref={chatInputRef} value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'} rows={2} />
+            <textarea
+              ref={chatInputRef}
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault()
+                  event.currentTarget.form?.requestSubmit()
+                }
+              }}
+              placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'}
+              rows={2}
+            />
             <button className="send-chat" type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button>
           </div>
         </form>
