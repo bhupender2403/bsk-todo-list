@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.database import Base, engine
 from app.main import app
-from app.task_commands import _has_explicit_task_ids
+from app.task_commands import _has_explicit_entity_ids
 
 
 def setup_function():
@@ -327,5 +327,44 @@ def test_task_command_declines_non_mutation(monkeypatch):
 def test_tool_call_requires_hash_prefixed_task_ids():
     command = {"action": "duration", "task_id": 1, "minutes": 1440}
 
-    assert _has_explicit_task_ids("Set estimated time for #1 to 1 day", command)
-    assert not _has_explicit_task_ids("Add a new 1 day task named clean room", command)
+    assert _has_explicit_entity_ids("Set estimated time for #1 to 1 day", command)
+    assert not _has_explicit_entity_ids("Add a new 1 day task named clean room", command)
+
+
+def test_aim_creation_assignment_and_status_data(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        aim_response = client.post(
+            "/api/aims",
+            json={"name": "Improve fitness", "description": "Build a healthy routine"},
+        )
+        assert aim_response.status_code == 201
+        aim = aim_response.json()
+
+        task_response = client.post(
+            "/api/todos",
+            json={"title": "Morning walk", "aim_id": aim["id"]},
+        )
+        assert task_response.status_code == 201
+        task = task_response.json()
+        assert task["aim_id"] == aim["id"]
+
+        unassigned = client.post("/api/todos", json={"title": "Drink water"}).json()
+        command = client.post(
+            "/api/task-commands",
+            json={"text": f"add #{unassigned['id']} to @{aim['id']}"},
+        )
+        assert command.status_code == 200
+        assert command.json()["handled"] is True
+        assert command.json()["todo"]["aim_id"] == aim["id"]
+
+        aims = client.get("/api/aims")
+        assert aims.status_code == 200
+        assert aims.json() == [aim]
+
+
+def test_aim_command_requires_at_prefixed_aim_id():
+    command = {"action": "aim", "task_id": 4, "aim_id": 2}
+
+    assert _has_explicit_entity_ids("add #4 to @2", command)
+    assert not _has_explicit_entity_ids("add #4 to aim 2", command)

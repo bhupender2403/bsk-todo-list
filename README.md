@@ -14,6 +14,8 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Track visible task IDs, schedules, and expected duration
 - Create multiple named sprints with future end dates
 - Assign tasks to sprints and select a sprint-scoped timeline from the sidebar
+- Create aims from the dashboard or Chat and track their task completion progress
+- Assign tasks to aims from the task form, by dragging, or with `#task` and `@aim` Chat commands
 - Link tasks through searchable dependencies
 - Explore dependency relationships in an interactive DAG
 - Track pending, scheduled, running, and completed task lifecycle states
@@ -102,9 +104,12 @@ set #5 estimated time to 4 days 5 hours
 set #7 start time to now
 set #7 start time to tomorrow
 set #7 start time to three days from now
+add #4 to @2
 ```
 
 Type `#` in Chat to find a task by its ID and insert its reference.
+Type `@` to find and insert an aim reference. Aim creation follows the same
+clarification and prefilled-modal flow as task creation.
 When OpenAI is configured, commands are selected through structured function
 tool calls. Without a key—or if the model call fails—the documented command
 forms continue to work through the local fallback parser. Chat labels which
@@ -134,6 +139,8 @@ npm run build
 | `GET` | `/api/todo-types` | List reusable todo types |
 | `GET` | `/api/sprints` | List named sprints |
 | `POST` | `/api/sprints` | Create a named sprint with a future end date |
+| `GET` | `/api/aims` | List aims |
+| `POST` | `/api/aims` | Create an aim |
 | `POST` | `/api/todo-types` | Create a todo type |
 | `POST` | `/api/task-analysis` | Detect task fields and clarification questions from text |
 | `POST` | `/api/task-commands` | Apply a supported task update command |

@@ -5,6 +5,7 @@ export type Todo = {
   todo_type: string
   completed: boolean
   sprint_id: number | null
+  aim_id: number | null
   start_time: string | null
   end_time: string | null
   expected_duration_minutes: number | null
@@ -19,6 +20,7 @@ export type TodoInput = {
   description: string
   todo_type: string
   sprint_id: number | null
+  aim_id: number | null
   start_time: string | null
   end_time: string | null
   expected_duration_minutes: number | null
@@ -68,6 +70,13 @@ export type Sprint = {
   created_at: string
 }
 
+export type Aim = {
+  id: number
+  name: string
+  description: string
+  created_at: string
+}
+
 export function getTodoStatus(todo: Todo): TodoStatus {
   if (todo.end_time) return 'completed'
   if (todo.is_running) return 'running'
@@ -93,6 +102,9 @@ export const api = {
   listSprints: () => request<Sprint[]>('/api/sprints'),
   createSprint: (name: string, endDate: string) =>
     request<Sprint>('/api/sprints', { method: 'POST', body: JSON.stringify({ name, end_date: endDate }) }),
+  listAims: () => request<Aim[]>('/api/aims'),
+  createAim: (name: string, description: string) =>
+    request<Aim>('/api/aims', { method: 'POST', body: JSON.stringify({ name, description }) }),
   analyzeTask: (text: string, answers: Record<string, string> = {}) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),
@@ -102,7 +114,7 @@ export const api = {
     request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
   create: (input: TodoInput) =>
     request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
-  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
+  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
     request<Todo>(`/api/todos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),

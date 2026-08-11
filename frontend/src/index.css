@@ -63,7 +63,8 @@ nav button.active { background: #dfe5dc; color: #405345; font-weight: 600; }
 h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46px); line-height: .95; letter-spacing: -.03em; }
 .subtitle { margin: 7px 0 0; color: #7b817c; font-size: 13px; }
 .header-actions { display: flex; align-items: center; gap: 9px; }
-.sidebar-toggle, .header-add-task, .chat-toggle { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #d9ddd5; border-radius: 9px; background: white; color: #59625b; font-size: 11px; font-weight: 600; }
+.sidebar-toggle, .header-add-task, .chat-toggle, .view-toggle { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #d9ddd5; border-radius: 9px; background: white; color: #59625b; font-size: 11px; font-weight: 600; }
+.view-toggle { background: #edf0e9; }
 .sidebar-toggle:hover { background: #f1f3ee; }
 .header-add-task { border-color: #465e4b; background: #465e4b; color: white; box-shadow: 0 5px 14px rgba(70,94,75,.14); }
 .header-add-task:hover { background: #3c5341; }
@@ -165,7 +166,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .type-control input, .type-control select { min-width: 0; flex: 1; }
 .type-control button { flex: 0 0 auto; padding: 8px 10px; border: 1px solid #daddd6; border-radius: 9px; background: #f3f4ef; color: #58635a; font-size: 11px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.identity-row { grid-template-columns: 1.2fr .8fr; }
+.identity-row { grid-template-columns: 1.2fr .8fr .8fr; }
 .schedule-form-row { grid-template-columns: 1fr 1.15fr 1.45fr; }
 .date-time-control { position: relative; }
 .date-time-control input { padding-right: 43px; cursor: pointer; }
@@ -187,7 +188,22 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .sprint-modal { width: min(390px, 100%); padding: 24px; border: 1px solid rgba(255,255,255,.5); border-radius: 18px; background: #fbfbf7; box-shadow: 0 28px 80px rgba(26,32,27,.28); animation: modal-in .18s ease-out; }
 .sprint-modal form, .sprint-modal label { display: grid; gap: 9px; }
 .sprint-modal label { color: #747b75; font-size: 11px; font-weight: 600; }
-.sprint-modal input { width: 100%; padding: 10px 11px; border: 1px solid #d9ddd5; border-radius: 9px; outline: 0; background: white; color: #343935; }
+.sprint-modal input, .sprint-modal textarea { width: 100%; padding: 10px 11px; border: 1px solid #d9ddd5; border-radius: 9px; outline: 0; background: white; color: #343935; font: inherit; }
+.sprint-modal textarea { min-height: 88px; resize: vertical; }
+
+.aim-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 14px; align-content: start; padding: 16px; overflow: auto; }
+.aim-card { min-height: 150px; padding: 16px; border: 1px solid #dfe3db; border-radius: 14px; background: #fbfcfa; box-shadow: 0 6px 18px rgba(58,68,59,.05); transition: border-color .15s, background .15s, transform .15s; }
+.aim-card.drop-ready { border-color: #718f76; background: #eaf2e8; transform: translateY(-2px); }
+.aim-card-heading { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; }
+.aim-card-heading > span { color: #7b837c; font-size: 12px; font-weight: 700; }
+.aim-card-heading strong { font-size: 16px; }
+.aim-status { padding: 4px 7px; border-radius: 999px; background: #edf0e9; color: #556158; font-size: 10px; text-transform: uppercase; }
+.aim-card > p { margin: 10px 0 12px; color: #737a74; font-size: 12px; line-height: 1.45; }
+.aim-task-list { display: grid; gap: 6px; }
+.aim-task-list button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border: 1px solid #e2e5df; border-radius: 8px; background: white; color: #434a44; text-align: left; }
+.aim-task-list button span { color: #848b85; font-size: 10px; }
+.aim-task-list button.done { color: #7d857e; text-decoration: line-through; }
+.aim-empty { padding: 12px; border: 1px dashed #d7dbd4; border-radius: 8px; color: #909791; font-size: 11px; text-align: center; }
 .sprint-modal .modal-actions { margin-top: 8px; }
 .sprint-modal .modal-actions button { padding: 9px 12px; border: 1px solid #daddd6; border-radius: 9px; background: white; color: #59605a; }
 .sprint-modal .modal-actions .primary { border-color: #465e4b; background: #465e4b; color: white; }

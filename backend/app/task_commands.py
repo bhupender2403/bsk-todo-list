@@ -10,6 +10,7 @@ TASK_TOOLS = [
     {"type": "function", "function": {"name": "rename_task", "description": "Change the name or title of an existing task.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "title": {"type": "string"}}, "required": ["task_id", "title"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "set_estimated_duration", "description": "Set a task's estimated duration in days and hours.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "days": {"type": "integer", "minimum": 0}, "hours": {"type": "integer", "minimum": 0}}, "required": ["task_id", "days", "hours"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "set_start_time", "description": "Set a task start time using a supported relative date.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "when": {"type": "string", "enum": ["now", "tomorrow", "three days from now"]}}, "required": ["task_id", "when"], "additionalProperties": False}}},
+    {"type": "function", "function": {"name": "assign_task_to_aim", "description": "Assign an existing task referenced with # to an existing aim referenced with @.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "aim_id": {"type": "integer"}}, "required": ["task_id", "aim_id"], "additionalProperties": False}}},
 ]
 
 
@@ -39,7 +40,7 @@ def _openai_task_command(text: str) -> Optional[Dict[str, object]]:
             return None
         call = calls[0].function
         command = _command_from_tool_call(call.name, json.loads(call.arguments))
-        return command if command is not None and _has_explicit_task_ids(text, command) else None
+        return command if command is not None and _has_explicit_entity_ids(text, command) else None
     except Exception:
         return None
 
@@ -54,18 +55,19 @@ def _command_from_tool_call(name: str, arguments: Dict[str, object]) -> Optional
         return {"action": "duration", "task_id": task_id, "minutes": int(arguments["days"]) * 1440 + int(arguments["hours"]) * 60}
     if name == "set_start_time":
         return _start_command(task_id, str(arguments["when"]))
+    if name == "assign_task_to_aim":
+        return {"action": "aim", "task_id": task_id, "aim_id": int(arguments["aim_id"])}
     return None
 
 
-def _has_explicit_task_ids(text: str, command: Dict[str, object]) -> bool:
-    referenced_ids = {
+def _has_explicit_entity_ids(text: str, command: Dict[str, object]) -> bool:
+    task_ids = {
         int(value)
         for key, value in command.items()
         if key in {"task_id", "dependency_id"}
     }
-    return bool(referenced_ids) and all(
-        re.search(rf"#\s*{task_id}\b", text) is not None for task_id in referenced_ids
-    )
+    aim_ids = {int(value) for key, value in command.items() if key == "aim_id"}
+    return bool(task_ids) and all(re.search(rf"#\s*{task_id}\b", text) for task_id in task_ids) and all(re.search(rf"@\s*{aim_id}\b", text) for aim_id in aim_ids)
 
 
 def _start_command(task_id: int, when: str) -> Dict[str, object]:
@@ -118,5 +120,13 @@ def parse_task_command(text: str) -> Optional[Dict[str, object]]:
     if match:
         when = match["when"].lower()
         return _start_command(int(match["task"]), when)
+
+    match = re.fullmatch(
+        r"(?:add|assign) #(?P<task>\d+)(?: [^@]+?)? (?:to|into) @(?P<aim>\d+)(?: .+)?",
+        command,
+        re.I,
+    )
+    if match:
+        return {"action": "aim", "task_id": int(match["task"]), "aim_id": int(match["aim"])}
 
     return None

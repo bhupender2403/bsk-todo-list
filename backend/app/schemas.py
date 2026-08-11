@@ -9,6 +9,7 @@ class TodoCreate(BaseModel):
     description: str = Field(default="", max_length=5000)
     todo_type: str = Field(default="General", min_length=1, max_length=60)
     sprint_id: Optional[int] = None
+    aim_id: Optional[int] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
@@ -22,6 +23,7 @@ class TodoUpdate(BaseModel):
     todo_type: Optional[str] = Field(default=None, min_length=1, max_length=60)
     completed: Optional[bool] = None
     sprint_id: Optional[int] = None
+    aim_id: Optional[int] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
@@ -38,6 +40,7 @@ class TodoResponse(BaseModel):
     todo_type: str
     completed: bool
     sprint_id: Optional[int]
+    aim_id: Optional[int]
     start_time: Optional[datetime]
     end_time: Optional[datetime]
     expected_duration_minutes: Optional[int]
@@ -106,4 +109,18 @@ class SprintResponse(BaseModel):
     id: int
     name: str
     end_date: date
+    created_at: datetime
+
+
+class AimCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=5000)
+
+
+class AimResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str
     created_at: datetime

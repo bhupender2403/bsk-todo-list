@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base, WORKSPACE, engine, get_db
-from .models import Sprint, Todo, TodoType
+from .models import Aim, Sprint, Todo, TodoType
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
@@ -19,6 +19,8 @@ from .schemas import (
     TaskCommandResponse,
     SprintCreate,
     SprintResponse,
+    AimCreate,
+    AimResponse,
     TodoCreate,
     TodoResponse,
     TodoTypeCreate,
@@ -46,6 +48,7 @@ def migrate_sqlite_schema() -> None:
         "description": "TEXT NOT NULL DEFAULT ''",
         "todo_type": "VARCHAR(60) NOT NULL DEFAULT 'General'",
         "sprint_id": "INTEGER",
+        "aim_id": "INTEGER",
         "start_time": "DATETIME",
         "end_time": "DATETIME",
         "expected_duration_minutes": "INTEGER",
@@ -187,6 +190,21 @@ def create_sprint(payload: SprintCreate, db: Session = Depends(get_db)):
     return sprint
 
 
+@app.get("/api/aims", response_model=List[AimResponse])
+def list_aims(db: Session = Depends(get_db)):
+    return list(db.scalars(select(Aim).order_by(Aim.created_at, Aim.id)))
+
+
+@app.post("/api/aims", response_model=AimResponse, status_code=status.HTTP_201_CREATED)
+def create_aim(payload: AimCreate, db: Session = Depends(get_db)):
+    name = clean_title(payload.name)
+    aim = Aim(name=name, description=payload.description.strip())
+    db.add(aim)
+    db.commit()
+    db.refresh(aim)
+    return aim
+
+
 @app.get("/api/todos", response_model=List[TodoResponse])
 def list_todos(db: Session = Depends(get_db)) -> List[Todo]:
     return list(db.scalars(select(Todo).order_by(Todo.created_at.desc(), Todo.id.desc())))
@@ -241,6 +259,12 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
         minutes = int(command["minutes"])
         todo = update_todo(task_id, TodoUpdate(expected_duration_minutes=minutes), db)
         message = f"Set the estimated time for #{task_id} to {minutes // 1440} days and {(minutes % 1440) // 60} hours."
+    elif action == "aim":
+        aim_id = int(command["aim_id"])
+        if db.get(Aim, aim_id) is None:
+            raise HTTPException(status_code=404, detail="Aim not found")
+        todo = update_todo(task_id, TodoUpdate(aim_id=aim_id), db)
+        message = f"Assigned #{task_id} to aim @{aim_id}."
     else:
         todo = update_todo(task_id, TodoUpdate(start_time=command["start_time"]), db)
         message = f"Set the start time for #{task_id} to {command['when']}."
@@ -279,6 +303,8 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
     find_or_create_type(type_name, db)
     if payload.sprint_id is not None and db.get(Sprint, payload.sprint_id) is None:
         raise HTTPException(status_code=422, detail="Sprint does not exist")
+    if payload.aim_id is not None and db.get(Aim, payload.aim_id) is None:
+        raise HTTPException(status_code=422, detail="Aim does not exist")
     validate_schedule(payload.start_time, payload.end_time)
     dependencies = find_todos(payload.dependency_ids, db)
     todo = Todo(
@@ -286,6 +312,7 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
         description=payload.description.strip(),
         todo_type=type_name,
         sprint_id=payload.sprint_id,
+        aim_id=payload.aim_id,
         start_time=payload.start_time,
         end_time=payload.end_time,
         expected_duration_minutes=payload.expected_duration_minutes,
@@ -322,6 +349,9 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
     if changes.get("sprint_id") is not None and "sprint_id" in changes:
         if db.get(Sprint, changes["sprint_id"]) is None:
             raise HTTPException(status_code=422, detail="Sprint does not exist")
+    if changes.get("aim_id") is not None and "aim_id" in changes:
+        if db.get(Aim, changes["aim_id"]) is None:
+            raise HTTPException(status_code=422, detail="Aim does not exist")
     validate_schedule(
         changes.get("start_time", todo.start_time), changes.get("end_time", todo.end_time)
     )

@@ -1,9 +1,9 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { api, getTodoStatus, type Sprint, type TaskAnalysis, type TaskAnalysisConfig, type Todo } from './api'
+import { api, getTodoStatus, type Aim, type Sprint, type TaskAnalysis, type TaskAnalysisConfig, type Todo } from './api'
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
-type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string }
+type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string; aimDraft?: { name: string; description: string } }
 type DetectedTask = { number: number; sourceText: string; answers: Record<string, string>; analysis: TaskAnalysis }
 
 export default function App() {
@@ -15,6 +15,7 @@ export default function App() {
   const [newType, setNewType] = useState('')
   const [creatingType, setCreatingType] = useState(false)
   const [taskSprintId, setTaskSprintId] = useState('')
+  const [taskAimId, setTaskAimId] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [durationDays, setDurationDays] = useState('')
@@ -28,9 +29,15 @@ export default function App() {
   const [activeTaskNumber, setActiveTaskNumber] = useState<number | null>(null)
   const [taskAnalysisConfig, setTaskAnalysisConfig] = useState<TaskAnalysisConfig | null>(null)
   const [sprints, setSprints] = useState<Sprint[]>([])
+  const [aims, setAims] = useState<Aim[]>([])
   const [sprintName, setSprintName] = useState('')
   const [sprintEndDate, setSprintEndDate] = useState('')
   const [sprintModalOpen, setSprintModalOpen] = useState(false)
+  const [aimModalOpen, setAimModalOpen] = useState(false)
+  const [aimName, setAimName] = useState('')
+  const [aimDescription, setAimDescription] = useState('')
+  const [pendingAimName, setPendingAimName] = useState(false)
+  const [dashboardMode, setDashboardMode] = useState<'tasks' | 'aims'>('tasks')
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null)
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null)
   const [sprintDropActive, setSprintDropActive] = useState(false)
@@ -52,12 +59,13 @@ export default function App() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    Promise.all([api.list(), api.listTypes(), api.taskAnalysisConfig(), api.listSprints()])
-      .then(([items, todoTypes, analysisConfig, sprintItems]) => {
+    Promise.all([api.list(), api.listTypes(), api.taskAnalysisConfig(), api.listSprints(), api.listAims()])
+      .then(([items, todoTypes, analysisConfig, sprintItems, aimItems]) => {
         setTodos(items)
         setTypes(todoTypes.map((item) => item.name))
         setTaskAnalysisConfig(analysisConfig)
         setSprints(sprintItems)
+        setAims(aimItems)
         setSelectedId(items[0]?.id ?? null)
       })
       .catch(showError)
@@ -117,6 +125,11 @@ export default function App() {
     if (taskReferenceQuery === null) return []
     return todos.filter((todo) => String(todo.id).includes(taskReferenceQuery)).slice(0, 8)
   }, [todos, taskReferenceQuery])
+  const aimReferenceQuery = chatInput.match(/(?:^|\s)@(\d*)$/)?.[1] ?? null
+  const aimReferenceMatches = useMemo(() => {
+    if (aimReferenceQuery === null) return []
+    return aims.filter((aim) => String(aim.id).includes(aimReferenceQuery)).slice(0, 8)
+  }, [aims, aimReferenceQuery])
 
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
   const statusCounts = useMemo(() => todos.reduce(
@@ -132,6 +145,16 @@ export default function App() {
     event.preventDefault()
     const text = chatInput.trim()
     if (!text) return
+    if (pendingAimName) {
+      const messageId = Date.now()
+      setPendingAimName(false)
+      setChatInput('')
+      setChatMessages((current) => [...current,
+        { id: messageId, role: 'user', text },
+        { id: messageId + 1, role: 'assistant', text: 'This aim is ready to review and create.', aimDraft: { name: text, description: text } },
+      ])
+      return
+    }
     if (/^(?:hi|hello|hey|hi there|hello there)[!. ]*$/i.test(text)) {
       const messageId = Date.now()
       setChatInput('')
@@ -164,6 +187,19 @@ export default function App() {
       } finally {
         setAnalyzing(false)
       }
+    }
+    const aimRequest = text.match(/^(?:create|add)(?: a| an)? aim(?:\s+(?:to|for|named|called))?\s*(.*)$/i)
+    if (aimRequest) {
+      const messageId = Date.now()
+      const name = aimRequest[1].trim()
+      setChatInput('')
+      if (!name) {
+        setPendingAimName(true)
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'What should this aim be called?' }])
+      } else {
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'This aim is ready to review and create.', aimDraft: { name, description: text } }])
+      }
+      return
     }
     setAnalyzing(true)
     setError('')
@@ -204,6 +240,7 @@ export default function App() {
     setCreatingType(false)
     setNewType('')
     setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
+    setTaskAimId('')
     setStartTime(suggestion.start_date ?? '')
     setEndTime('')
     setDurationDays(suggestion.expected_duration_days ? String(suggestion.expected_duration_days) : '')
@@ -221,12 +258,18 @@ export default function App() {
     requestAnimationFrame(() => chatInputRef.current?.focus())
   }
 
+  function insertAimReference(aim: Aim) {
+    setChatInput((current) => current.replace(/@\d*$/, `@${aim.id} ${aim.name}`))
+    requestAnimationFrame(() => chatInputRef.current?.focus())
+  }
+
   function clearChat() {
     setChatMessages([])
     setDetectedTasks([])
     setActiveTaskNumber(null)
     setChatInput('')
     setError('')
+    setPendingAimName(false)
   }
 
   async function saveSprint(event: FormEvent) {
@@ -261,6 +304,24 @@ export default function App() {
     return `${year}-${month}-${day}`
   }
 
+  function openAimModal(draft?: { name: string; description: string }) {
+    setAimName(draft?.name ?? '')
+    setAimDescription(draft?.description ?? '')
+    setAimModalOpen(true)
+  }
+
+  async function saveAim(event: FormEvent) {
+    event.preventDefault()
+    try {
+      const aim = await api.createAim(aimName, aimDescription)
+      setAims((current) => [...current, aim])
+      setAimModalOpen(false)
+      setDashboardMode('aims')
+    } catch (reason) {
+      showError(reason)
+    }
+  }
+
   async function addTodo(event: FormEvent) {
     event.preventDefault()
     if (!title.trim()) return
@@ -276,6 +337,7 @@ export default function App() {
         description,
         todo_type: typeName,
         sprint_id: taskSprintId ? Number(taskSprintId) : null,
+        aim_id: taskAimId ? Number(taskAimId) : null,
         start_time: startTime ? `${startTime}T00:00:00` : null,
         end_time: endTime || null,
         expected_duration_minutes: minutes || null,
@@ -302,6 +364,7 @@ export default function App() {
       setCreatingType(false)
       setNewType('')
       setTaskSprintId('')
+      setTaskAimId('')
       setStartTime('')
       setEndTime('')
       setDurationDays('')
@@ -327,6 +390,7 @@ export default function App() {
     setCreatingType(false)
     setNewType('')
     setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
+    setTaskAimId('')
     setStartTime('')
     setEndTime('')
     setDurationDays('')
@@ -348,6 +412,7 @@ export default function App() {
     setCreatingType(false)
     setNewType('')
     setTaskSprintId(todo.sprint_id === null ? '' : String(todo.sprint_id))
+    setTaskAimId(todo.aim_id === null ? '' : String(todo.aim_id))
     setStartTime(todo.start_time?.slice(0, 10) ?? '')
     setEndTime(todo.end_time?.slice(0, 16) ?? '')
     setDurationDays(duration ? String(Math.floor(duration / 1440)) : '')
@@ -384,7 +449,7 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
-  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
     try {
       const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
@@ -400,6 +465,12 @@ export default function App() {
     setDraggingTaskId(null)
     if (!todo || todo.sprint_id === selectedSprintId) return
     await updateTodo(todo, { sprint_id: selectedSprintId })
+  }
+
+  async function assignTaskToAim(todoId: number, aimId: number) {
+    const todo = todos.find((item) => item.id === todoId)
+    if (todo && todo.aim_id !== aimId) await updateTodo(todo, { aim_id: aimId })
+    setDraggingTaskId(null)
   }
 
   function addDependencyByName() {
@@ -461,9 +532,11 @@ export default function App() {
       <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <header className="app-header">
           <div>
-            <h1>Task dependencies</h1>
+            <h1>{dashboardMode === 'tasks' ? 'Task dependencies' : 'Aims'}</h1>
           </div>
           <div className="header-actions">
+            <button className="view-toggle" onClick={() => setDashboardMode((current) => current === 'tasks' ? 'aims' : 'tasks')}>{dashboardMode === 'tasks' ? 'Aims' : 'Tasks'}</button>
+            {dashboardMode === 'aims' && <button className="header-add-task" onClick={() => openAimModal()}><span aria-hidden="true">＋</span> Add aim</button>}
             <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
               <span aria-hidden="true">◌</span> Chat
@@ -521,7 +594,7 @@ export default function App() {
             {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
               <p className="sidebar-empty">No matching tasks.</p>
             ) : visibleTodos.map((todo) => (
-              <button draggable={selectedSprintId !== null} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => { setDraggingTaskId(null); setSprintDropActive(false) }} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
+              <button draggable={selectedSprintId !== null || dashboardMode === 'aims'} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => { setDraggingTaskId(null); setSprintDropActive(false) }} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
                   <small>#{todo.id} · {todo.todo_type} · {getTodoStatus(todo)}</small>
@@ -532,11 +605,24 @@ export default function App() {
           </div>
         </aside>
 
-        <section className={`workspace ${sprintDropActive ? 'sprint-drop-ready' : ''}`} onDragOver={(event) => { if (selectedSprintId !== null && draggingTaskId !== null) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setSprintDropActive(true) } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSprintDropActive(false) }} onDrop={(event) => { event.preventDefault(); void assignDroppedTaskToSprint() }}>
+        <section className={`workspace ${dashboardMode === 'tasks' && sprintDropActive ? 'sprint-drop-ready' : ''}`} onDragOver={(event) => { if (dashboardMode === 'tasks' && selectedSprintId !== null && draggingTaskId !== null) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setSprintDropActive(true) } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSprintDropActive(false) }} onDrop={(event) => { if (dashboardMode !== 'tasks') return; event.preventDefault(); void assignDroppedTaskToSprint() }}>
           {error && <p className="error" role="alert">{error}</p>}
 
-          {selectedSprint && <div className="sprint-view-heading"><div><span>Sprint</span><strong>{selectedSprint.name}</strong></div><small>{sprintDropActive ? 'Drop to assign task' : `${formatDate(selectedSprint.created_at)} – ${formatDate(selectedSprint.end_date)} · ${dashboardTodos.length} task${dashboardTodos.length === 1 ? '' : 's'}`}</small></div>}
-          <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} rangeStart={selectedSprint?.created_at.slice(0, 10)} rangeEnd={selectedSprint?.end_date} />
+          {dashboardMode === 'tasks' ? <>
+            {selectedSprint && <div className="sprint-view-heading"><div><span>Sprint</span><strong>{selectedSprint.name}</strong></div><small>{sprintDropActive ? 'Drop to assign task' : `${formatDate(selectedSprint.created_at)} – ${formatDate(selectedSprint.end_date)} · ${dashboardTodos.length} task${dashboardTodos.length === 1 ? '' : 's'}`}</small></div>}
+            <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} rangeStart={selectedSprint?.created_at.slice(0, 10)} rangeEnd={selectedSprint?.end_date} />
+          </> : <section className="aim-dashboard">
+            {aims.length === 0 ? <div className="aim-empty"><h2>No aims yet</h2><p>Create an aim, then drag tasks onto it.</p></div> : aims.map((aim) => {
+              const aimTasks = todos.filter((todo) => todo.aim_id === aim.id)
+              const completed = aimTasks.filter((todo) => getTodoStatus(todo) === 'completed').length
+              const status = aimTasks.length === 0 ? 'EMPTY' : completed === aimTasks.length ? 'COMPLETED' : `${completed} out of ${aimTasks.length} tasks completed`
+              return <article className="aim-card" onDragOver={(event) => { event.stopPropagation(); if (draggingTaskId !== null) { event.preventDefault(); event.currentTarget.classList.add('drop-ready') } }} onDragLeave={(event) => event.currentTarget.classList.remove('drop-ready')} onDrop={(event) => { event.stopPropagation(); event.preventDefault(); event.currentTarget.classList.remove('drop-ready'); if (draggingTaskId !== null) void assignTaskToAim(draggingTaskId, aim.id) }} key={aim.id}>
+                <div className="aim-card-heading"><span>@{aim.id}</span><strong>{aim.name}</strong><b className="aim-status">{status}</b></div>
+                {aim.description && <p>{aim.description}</p>}
+                <div className="aim-task-list">{aimTasks.map((todo) => <button onClick={() => openTaskDetail(todo.id)} key={todo.id}><span>#{todo.id}</span>{todo.title}<small>{getTodoStatus(todo)}</small></button>)}</div>
+              </article>
+            })}
+          </section>}
         </section>
       </section>
 
@@ -553,6 +639,7 @@ export default function App() {
             <div className="detail-fields">
               <label>Type<select value={selectedTodo.todo_type} onChange={(event) => updateTodo(selectedTodo, { todo_type: event.target.value })}>{types.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
               <div><span>Sprint</span><strong>{sprints.find((sprint) => sprint.id === selectedTodo.sprint_id)?.name ?? 'None'}</strong></div>
+              <div><span>Aim</span><strong>{aims.find((aim) => aim.id === selectedTodo.aim_id)?.name ?? 'None'}</strong></div>
               <label>Start date
                 <div className="date-time-control detail-date-time">
                   <input ref={detailStartTimeInput} type="date" value={selectedTodo.start_time?.slice(0, 10) ?? ''} title={formatDate(selectedTodo.start_time)} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => updateTodo(selectedTodo, { start_time: event.target.value ? `${event.target.value}T00:00:00` : null })} />
@@ -608,6 +695,12 @@ export default function App() {
                   <select value={taskSprintId} onChange={(event) => setTaskSprintId(event.target.value)}>
                     <option value="">None</option>
                     {sprints.map((sprint) => <option value={sprint.id} key={sprint.id}>{sprint.name}</option>)}
+                  </select>
+                </label>
+                <label>Aim <small>Optional</small>
+                  <select value={taskAimId} onChange={(event) => setTaskAimId(event.target.value)}>
+                    <option value="">None</option>
+                    {aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}
                   </select>
                 </label>
               </div>
@@ -677,6 +770,7 @@ export default function App() {
               {task && <button className="inline-task-marker" onClick={() => openDetectedTask(task)} title={`Review task ${task.number}`}>
                 <span>＋</span><b>{task.number}</b>
               </button>}
+              {message.aimDraft && <button className="inline-task-marker aim-marker" onClick={() => openAimModal(message.aimDraft)} title="Review aim"><span>＋</span><b>@</b></button>}
             </div>
           })}
           {analyzing && <div className="chat-message assistant"><p>Detecting task details…</p></div>}
@@ -686,6 +780,11 @@ export default function App() {
             {taskReferenceMatches.length > 0 ? taskReferenceMatches.map((todo) => <button type="button" role="option" onClick={() => insertTaskReference(todo)} key={todo.id}>
               <b>#{todo.id}</b><span>{todo.title}</span>
             </button>) : <p>No task number matches #{taskReferenceQuery}</p>}
+          </div>}
+          {aimReferenceQuery !== null && <div className="task-reference-tooltip" role="listbox" aria-label="Aim references">
+            {aimReferenceMatches.length > 0 ? aimReferenceMatches.map((aim) => <button type="button" role="option" onClick={() => insertAimReference(aim)} key={aim.id}>
+              <b>@{aim.id}</b><span>{aim.name}</span>
+            </button>) : <p>No aim number matches @{aimReferenceQuery}</p>}
           </div>}
           {activeTaskNumber && <small>Answering about task <b>{activeTaskNumber}</b></small>}
           <div className="chat-composer-toolbar">
@@ -728,6 +827,29 @@ export default function App() {
             <div className="modal-actions">
               <button type="button" onClick={() => setSprintModalOpen(false)}>Cancel</button>
               <button className="primary" type="submit" disabled={!sprintName.trim() || !sprintEndDate}>Create sprint</button>
+            </div>
+          </form>
+        </section>
+      </div>}
+
+      {aimModalOpen && <div className="modal-backdrop" onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setAimModalOpen(false)
+      }}>
+        <section className="sprint-modal" role="dialog" aria-modal="true" aria-labelledby="aim-modal-title">
+          <div className="modal-heading">
+            <div><p className="eyebrow">Direction</p><h2 id="aim-modal-title">Create an aim</h2></div>
+            <button onClick={() => setAimModalOpen(false)} aria-label="Close aim modal">×</button>
+          </div>
+          <form onSubmit={saveAim}>
+            <label>Aim name
+              <input autoFocus value={aimName} onChange={(event) => setAimName(event.target.value)} placeholder="What outcome are you aiming for?" maxLength={200} />
+            </label>
+            <label>Description <small>Optional</small>
+              <textarea value={aimDescription} onChange={(event) => setAimDescription(event.target.value)} placeholder="Describe the intended outcome…" rows={3} maxLength={5000} />
+            </label>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setAimModalOpen(false)}>Cancel</button>
+              <button className="primary" type="submit" disabled={!aimName.trim()}>Create aim</button>
             </div>
           </form>
         </section>

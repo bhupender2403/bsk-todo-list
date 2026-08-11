@@ -26,6 +26,7 @@ class Todo(Base):
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
     sprint_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sprints.id"), nullable=True)
+    aim_id: Mapped[Optional[int]] = mapped_column(ForeignKey("aims.id"), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expected_duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -34,6 +35,7 @@ class Todo(Base):
         DateTime, server_default=func.now(), onupdate=func.now()
     )
     sprint: Mapped[Optional["Sprint"]] = relationship(foreign_keys=[sprint_id])
+    aim: Mapped[Optional["Aim"]] = relationship(foreign_keys=[aim_id], back_populates="tasks")
     dependencies: Mapped[List["Todo"]] = relationship(
         secondary=todo_dependencies,
         primaryjoin=id == todo_dependencies.c.todo_id,
@@ -62,3 +64,13 @@ class Sprint(Base):
     name: Mapped[str] = mapped_column(String(120), index=True)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class Aim(Base):
+    __tablename__ = "aims"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), index=True)
+    description: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    tasks: Mapped[List["Todo"]] = relationship(back_populates="aim")
