@@ -83,3 +83,12 @@ class TaskAnalysisResponse(BaseModel):
 class TaskAnalysisConfigResponse(BaseModel):
     openai_configured: bool
     model: Optional[str] = None
+
+
+class TaskCommandRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+
+
+class TaskCommandResponse(BaseModel):
+    message: str
+    todo: TodoResponse

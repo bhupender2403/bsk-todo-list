@@ -14,6 +14,8 @@ from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
     TaskAnalysisConfigResponse,
+    TaskCommandRequest,
+    TaskCommandResponse,
     TodoCreate,
     TodoResponse,
     TodoTypeCreate,
@@ -21,6 +23,7 @@ from .schemas import (
     TodoUpdate,
 )
 from .task_detection import task_detection_graph
+from .task_commands import parse_task_command
 
 
 @asynccontextmanager
@@ -182,6 +185,38 @@ def task_analysis_config():
         "openai_configured": configured,
         "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini") if configured else None,
     }
+
+
+@app.post("/api/task-commands", response_model=TaskCommandResponse)
+def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db)):
+    command = parse_task_command(payload.text)
+    if command is None:
+        raise HTTPException(status_code=422, detail="I could not understand that task command")
+
+    task_id = int(command["task_id"])
+    todo = find_todo(task_id, db)
+    action = command["action"]
+    if action == "parent":
+        parent_id = int(command["parent_id"])
+        todo = update_todo(task_id, TodoUpdate(parent_id=parent_id), db)
+        message = f"Set #{parent_id} as the parent of #{task_id}."
+    elif action == "dependency":
+        dependency_id = int(command["dependency_id"])
+        dependency_ids = list(dict.fromkeys([*todo.dependency_ids, dependency_id]))
+        todo = update_todo(task_id, TodoUpdate(dependency_ids=dependency_ids), db)
+        message = f"Set #{task_id} to depend on #{dependency_id}."
+    elif action == "rename":
+        title = str(command["title"])
+        todo = update_todo(task_id, TodoUpdate(title=title), db)
+        message = f"Renamed #{task_id} to “{todo.title}”."
+    elif action == "duration":
+        minutes = int(command["minutes"])
+        todo = update_todo(task_id, TodoUpdate(expected_duration_minutes=minutes), db)
+        message = f"Set the estimated time for #{task_id} to {minutes // 1440} days and {(minutes % 1440) // 60} hours."
+    else:
+        todo = update_todo(task_id, TodoUpdate(start_time=command["start_time"]), db)
+        message = f"Set the start time for #{task_id} to {command['when']}."
+    return {"message": message, "todo": todo}
 
 
 @app.get("/api/todo-types", response_model=List[TodoTypeResponse])

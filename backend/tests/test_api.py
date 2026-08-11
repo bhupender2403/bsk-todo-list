@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 
 os.environ["DATABASE_URL"] = "sqlite://"
 
@@ -221,3 +222,49 @@ def test_task_analysis_config_does_not_expose_key(monkeypatch):
         "model": "test-model",
     }
     assert "secret-value" not in response.text
+
+
+def test_chat_task_commands_update_tasks():
+    with TestClient(app) as client:
+        tasks = [
+            client.post("/api/todos", json={"title": f"Task {index}"}).json()
+            for index in range(1, 8)
+        ]
+        by_number = {task["id"]: task for task in tasks}
+        task3, task4, task5, task7 = (
+            tasks[2]["id"],
+            tasks[3]["id"],
+            tasks[4]["id"],
+            tasks[6]["id"],
+        )
+
+        parent = client.post(
+            "/api/task-commands", json={"text": f"set #{task3} as parent of #{task4}"}
+        )
+        assert parent.status_code == 200
+        assert parent.json()["todo"]["parent_id"] == task3
+
+        dependency = client.post(
+            "/api/task-commands", json={"text": f"set #{task4} depends on #{task5}"}
+        )
+        assert dependency.json()["todo"]["dependency_ids"] == [task5]
+
+        renamed = client.post(
+            "/api/task-commands", json={"text": f"update #{task4} name to New name"}
+        )
+        assert renamed.json()["todo"]["title"] == "New name"
+
+        duration = client.post(
+            "/api/task-commands",
+            json={"text": f"set #{task5} estimated time to 4 days 5 hours"},
+        )
+        assert duration.json()["todo"]["expected_duration_minutes"] == 4 * 1440 + 5 * 60
+
+        scheduled = client.post(
+            "/api/task-commands",
+            json={"text": f"set #{task7} start time to three days from now"},
+        )
+        assert scheduled.json()["todo"]["start_time"][:10] == (
+            date.today() + timedelta(days=3)
+        ).isoformat()
+        assert set(by_number) == {task["id"] for task in client.get("/api/todos").json()}

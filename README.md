@@ -8,6 +8,7 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Detect task details in a separate natural-language chat with a LangGraph workflow
 - Keep numbered markers on related chat messages and open a prefilled task modal from any marker
 - Ask and answer clarification questions before creating a task
+- Update existing tasks from Chat with `#ID` commands for parents, dependencies, names, durations, and start dates
 - Add detailed descriptions and notes to tasks
 - Assign reusable types to todos and create new types while adding a task
 - Track visible task IDs, optional parent tasks, schedules, and expected duration
@@ -88,6 +89,22 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api` requests to the backend.
 
+### Chat task commands
+
+The Task Assistant understands these update commands:
+
+```text
+set #3 as parent of #4
+set #4 depends on #5
+update #4 name to New name
+set #5 estimated time to 4 days 5 hours
+set #7 start time to now
+set #7 start time to tomorrow
+set #7 start time to three days from now
+```
+
+Type `#` in Chat to find a task by its ID and insert its reference.
+
 ## Tests
 
 ```bash
@@ -112,6 +129,7 @@ npm run build
 | `GET` | `/api/todo-types` | List reusable todo types |
 | `POST` | `/api/todo-types` | Create a todo type |
 | `POST` | `/api/task-analysis` | Detect task fields and clarification questions from text |
+| `POST` | `/api/task-commands` | Apply a supported task update command |
 | `POST` | `/api/todos` | Create a todo |
 | `PATCH` | `/api/todos/{id}` | Update a todo |
 | `DELETE` | `/api/todos/{id}` | Delete a todo |

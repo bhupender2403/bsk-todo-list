@@ -131,6 +131,24 @@ export default function App() {
       ])
       return
     }
+    if (/^(?:set|update)\s+#\d+/i.test(text)) {
+      const messageId = Date.now()
+      setAnalyzing(true)
+      setError('')
+      setChatInput('')
+      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }])
+      try {
+        const result = await api.runTaskCommand(text)
+        setTodos((current) => current.map((todo) => todo.id === result.todo.id ? result.todo : todo))
+        setChatMessages((current) => [...current, { id: messageId + 1, role: 'assistant', text: result.message }])
+      } catch (reason) {
+        const message = reason instanceof Error ? reason.message : 'The task could not be updated'
+        setChatMessages((current) => [...current, { id: messageId + 1, role: 'assistant', text: message }])
+      } finally {
+        setAnalyzing(false)
+      }
+      return
+    }
     setAnalyzing(true)
     setError('')
     setChatInput('')

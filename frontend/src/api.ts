@@ -55,6 +55,11 @@ export type TaskAnalysisConfig = {
   model: string | null
 }
 
+export type TaskCommandResult = {
+  message: string
+  todo: Todo
+}
+
 export function getTodoStatus(todo: Todo): TodoStatus {
   if (todo.end_time) return 'completed'
   if (todo.is_running) return 'running'
@@ -80,6 +85,8 @@ export const api = {
   analyzeTask: (text: string, answers: Record<string, string> = {}) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),
+  runTaskCommand: (text: string) =>
+    request<TaskCommandResult>('/api/task-commands', { method: 'POST', body: JSON.stringify({ text }) }),
   createType: (name: string) =>
     request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
   create: (input: TodoInput) =>
