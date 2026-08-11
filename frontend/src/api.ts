@@ -62,6 +62,10 @@ export type TaskCommandResult = {
   source: string
 }
 
+export type SprintSettings = {
+  end_date: string | null
+}
+
 export function getTodoStatus(todo: Todo): TodoStatus {
   if (todo.end_time) return 'completed'
   if (todo.is_running) return 'running'
@@ -84,6 +88,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
   listTypes: () => request<TodoType[]>('/api/todo-types'),
+  getSprint: () => request<SprintSettings>('/api/sprint'),
+  updateSprint: (endDate: string | null) =>
+    request<SprintSettings>('/api/sprint', { method: 'PUT', body: JSON.stringify({ end_date: endDate }) }),
   analyzeTask: (text: string, answers: Record<string, string> = {}) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),

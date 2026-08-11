@@ -60,7 +60,19 @@ def test_todo_lifecycle():
 def test_rejects_blank_title():
     with TestClient(app) as client:
         response = client.post("/api/todos", json={"title": "   "})
-        assert response.status_code == 422
+    assert response.status_code == 422
+
+
+def test_current_sprint_end_date_can_be_saved_and_cleared():
+    with TestClient(app) as client:
+        assert client.get("/api/sprint").json() == {"end_date": None}
+        assert client.put("/api/sprint", json={"end_date": "2026-08-28"}).json() == {
+            "end_date": "2026-08-28"
+        }
+        assert client.get("/api/sprint").json() == {"end_date": "2026-08-28"}
+        assert client.put("/api/sprint", json={"end_date": None}).json() == {
+            "end_date": None
+        }
 
 
 def test_new_type_is_reusable_and_can_be_created_with_todo():

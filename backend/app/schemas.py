@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -94,3 +94,13 @@ class TaskCommandResponse(BaseModel):
     message: Optional[str] = None
     todo: Optional[TodoResponse] = None
     source: str
+
+
+class SprintSettingsUpdate(BaseModel):
+    end_date: Optional[date] = None
+
+
+class SprintSettingsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    end_date: Optional[date] = None

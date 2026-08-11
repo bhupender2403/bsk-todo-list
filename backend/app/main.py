@@ -9,13 +9,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base, WORKSPACE, engine, get_db
-from .models import Todo, TodoType
+from .models import SprintSettings, Todo, TodoType
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
     TaskAnalysisConfigResponse,
     TaskCommandRequest,
     TaskCommandResponse,
+    SprintSettingsResponse,
+    SprintSettingsUpdate,
     TodoCreate,
     TodoResponse,
     TodoTypeCreate,
@@ -153,6 +155,24 @@ def health() -> Dict[str, str]:
 @app.get("/api/workspace")
 def workspace() -> Dict[str, str]:
     return {"path": str(WORKSPACE)}
+
+
+@app.get("/api/sprint", response_model=SprintSettingsResponse)
+def get_sprint(db: Session = Depends(get_db)):
+    settings = db.get(SprintSettings, 1)
+    return {"end_date": settings.end_date if settings else None}
+
+
+@app.put("/api/sprint", response_model=SprintSettingsResponse)
+def update_sprint(payload: SprintSettingsUpdate, db: Session = Depends(get_db)):
+    settings = db.get(SprintSettings, 1)
+    if settings is None:
+        settings = SprintSettings(id=1)
+        db.add(settings)
+    settings.end_date = payload.end_date
+    db.commit()
+    db.refresh(settings)
+    return settings
 
 
 @app.get("/api/todos", response_model=List[TodoResponse])
