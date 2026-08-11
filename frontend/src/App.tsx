@@ -453,9 +453,7 @@ export default function App() {
             <h1>Task dependencies</h1>
           </div>
           <div className="header-actions">
-            <button className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-expanded={sidebarOpen}>
-              <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
-            </button>
+            {!sidebarOpen && <button className="sidebar-toggle restore-sidebar" onClick={() => setSidebarOpen(true)} aria-label="Show sidebar" aria-expanded="false">☰</button>}
             <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
               <span aria-hidden="true">◌</span> Chat
@@ -474,7 +472,10 @@ export default function App() {
           <section className="sprint-sidebar-section">
             <div className="sidebar-heading sprint-heading">
               <div><p className="eyebrow">Planning</p><h2>Sprints</h2></div>
-              <button onClick={openSprintModal} aria-label="Create sprint">＋</button>
+              <div className="sprint-heading-actions">
+                <button className="add-sprint-icon" onClick={openSprintModal} aria-label="Create sprint">＋</button>
+                <button className="hide-sidebar-icon" onClick={() => setSidebarOpen(false)} aria-label="Hide sidebar" title="Hide sidebar">‹</button>
+              </div>
             </div>
             <div className="sprint-list">
               {sprints.length === 0 ? <p>No sprints yet.</p> : sprints.map((sprint) => <div className="sprint-card" key={sprint.id}>
