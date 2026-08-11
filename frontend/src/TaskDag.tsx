@@ -254,36 +254,48 @@ function taskSpanDays(todo: Todo, startDate: string) {
 }
 
 function dependencyRoute(from: NodePosition, to: NodePosition, index: number) {
-  const fromCenterY = from.y + NODE_HEIGHT / 2
-  const toCenterY = to.y + NODE_HEIGHT / 2
-  const fromRight = from.x + from.width
-  const toRight = to.x + to.width
+  // A dependency edge starts at the dependent task's start and points to the
+  // dependency task's end.
+  const startX = to.x
+  const startY = to.y + NODE_HEIGHT / 2
+  const endX = from.x + from.width
+  const endY = from.y + NODE_HEIGHT / 2
   const laneOffset = 28 + (index % 5) * 10
 
-  if (to.x >= fromRight + 8) {
-    const bend = (fromRight + to.x) / 2
-    return cubicRoute(fromRight, fromCenterY, bend, fromCenterY, bend, toCenterY, to.x, toCenterY)
+  if (Math.abs(startY - endY) < 1) {
+    return straightRoute(startX, startY, endX, endY)
   }
 
-  if (from.x >= toRight + 8) {
-    const bend = (from.x + toRight) / 2
-    return cubicRoute(from.x, fromCenterY, bend, fromCenterY, bend, toCenterY, toRight, toCenterY)
+  if (startX >= endX + 8) {
+    return orthogonalRoute(startX, startY, (startX + endX) / 2, endX, endY)
   }
 
-  const laneX = Math.max(fromRight, toRight) + laneOffset
-  return cubicRoute(fromRight, fromCenterY, laneX, fromCenterY, laneX, toCenterY, toRight, toCenterY)
+  const leftLaneX = Math.max(4, Math.min(startX, from.x) - laneOffset)
+  const rightLaneX = Math.max(to.x + to.width, endX) + laneOffset
+  const routeY = Math.max(4, Math.min(from.y, to.y) - laneOffset)
+  return {
+    path: `M ${startX} ${startY} H ${leftLaneX} V ${routeY} H ${rightLaneX} V ${endY} H ${endX}`,
+    arrowX: (leftLaneX + rightLaneX) / 2,
+    arrowY: routeY,
+    angle: 0,
+  }
 }
 
-function cubicRoute(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
-  const arrowX = (x0 + 3 * x1 + 3 * x2 + x3) / 8
-  const arrowY = (y0 + 3 * y1 + 3 * y2 + y3) / 8
-  const dx = 3 * (-x0 - x1 + x2 + x3) / 4
-  const dy = 3 * (-y0 - y1 + y2 + y3) / 4
+function orthogonalRoute(startX: number, startY: number, laneX: number, endX: number, endY: number) {
   return {
-    path: `M ${x0} ${y0} C ${x1} ${y1}, ${x2} ${y2}, ${x3} ${y3}`,
-    arrowX,
-    arrowY,
-    angle: Math.atan2(dy, dx) * 180 / Math.PI,
+    path: `M ${startX} ${startY} H ${laneX} V ${endY} H ${endX}`,
+    arrowX: laneX,
+    arrowY: (startY + endY) / 2,
+    angle: endY >= startY ? 90 : -90,
+  }
+}
+
+function straightRoute(startX: number, startY: number, endX: number, endY: number) {
+  return {
+    path: `M ${startX} ${startY} H ${endX}`,
+    arrowX: (startX + endX) / 2,
+    arrowY: (startY + endY) / 2,
+    angle: endX >= startX ? 0 : 180,
   }
 }
 

@@ -105,7 +105,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .dag-canvas { padding: 0; }
 .dag-canvas svg { display: block; }
 .dag-parent-group rect { fill: #f3f5f0; stroke: #cdd5ca; stroke-width: 1.5; }
-.dag-edge { fill: none; stroke: #718a76; stroke-width: 2; stroke-linecap: round; opacity: .72; }
+.dag-edge { fill: none; stroke: #718a76; stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; opacity: .72; }
 .dependency-arrow { fill: #718a76; opacity: .9; }
 .dag-node { cursor: pointer; }
 .dag-node rect { fill: #fff; stroke: #d8ddd5; stroke-width: 1.5; filter: drop-shadow(0 4px 7px rgba(45,55,47,.07)); transition: stroke .15s, transform .15s; }
