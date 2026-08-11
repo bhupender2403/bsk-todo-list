@@ -97,10 +97,7 @@ export default function App() {
   }, [todos])
 
   const readyDetectedTasks = useMemo(
-    () => detectedTasks.filter((task) => {
-      const title = task.analysis.suggestion.title.trim()
-      return title.length > 0 && title.toLocaleLowerCase() !== 'new task'
-    }),
+    () => detectedTasks.filter((task) => task.analysis.clarification_questions.length === 0),
     [detectedTasks],
   )
 
@@ -431,9 +428,8 @@ export default function App() {
                 <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
               </button>
               <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
-              <button className={`chat-toggle ${readyDetectedTasks.length ? 'has-detected' : ''}`} onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
+              <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
                 <span aria-hidden="true">◌</span> Chat
-                {readyDetectedTasks.length > 0 && <b>{readyDetectedTasks.length}</b>}
               </button>
               <div className="status-counters" aria-label="Task status counts">
                 {(['pending', 'scheduled', 'running', 'completed'] as const).map((status) => (
@@ -559,16 +555,16 @@ export default function App() {
           </div>
           <button onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
         </div>
-        {readyDetectedTasks.length > 0 && <div className="detected-task-strip" aria-label="Tasks ready to create">
-          {readyDetectedTasks.map((task) => <button className="task-marker ready" onClick={() => openDetectedTask(task)} title={`Create task ${task.number}: ${task.analysis.suggestion.title}`} key={task.number}>
-            <span>＋</span><b>{task.number}</b>
-          </button>)}
-        </div>}
         <div className="chat-messages" aria-live="polite">
           {chatMessages.length === 0 && <div className="chat-empty"><span>✦</span><p>Describe something you need to do. I’ll detect the task and ask for any missing details.</p></div>}
           {chatMessages.map((message) => {
             const detectedTask = message.taskNumber ? detectedTasks.find((item) => item.number === message.taskNumber) : undefined
-            const task = message.taskNumber ? readyDetectedTasks.find((item) => item.number === message.taskNumber) : undefined
+            const latestReply = message.taskNumber
+              ? [...chatMessages].reverse().find((item) => item.role === 'assistant' && item.taskNumber === message.taskNumber)
+              : undefined
+            const task = message.role === 'assistant' && message.id === latestReply?.id && message.taskNumber
+              ? readyDetectedTasks.find((item) => item.number === message.taskNumber)
+              : undefined
             return <div className={`chat-message ${message.role}`} key={message.id}>
               <div className="chat-message-content">
                 <p>{message.text}</p>

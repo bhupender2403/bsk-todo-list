@@ -44,9 +44,6 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .header-add-task { border-color: #465e4b; background: #465e4b; color: white; box-shadow: 0 5px 14px rgba(70,94,75,.14); }
 .header-add-task:hover { background: #3c5341; }
 .header-add-task span { font-size: 17px; line-height: 12px; }
-.chat-toggle { position: relative; }
-.chat-toggle.has-detected { border-color: #d59b53; background: #fff8e9; color: #79572f; box-shadow: 0 0 0 3px rgba(213,155,83,.12); }
-.chat-toggle b { position: absolute; top: -8px; right: -7px; min-width: 19px; height: 19px; display: grid; place-content: center; padding: 0 5px; border: 2px solid #fbfbf7; border-radius: 99px; background: #c17c35; color: white; font-size: 9px; }
 .status-counters { display: flex; align-items: center; gap: 5px; }
 .status-count { min-width: 58px; display: grid; gap: 1px; padding: 7px 8px; border: 1px solid #e0e3dc; border-radius: 10px; background: #f4f5f1; text-align: center; }
 .status-count strong { font-family: 'Newsreader', serif; color: #4c554e; font-size: 19px; line-height: 18px; }
@@ -155,16 +152,15 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .modal-actions button { padding: 10px 15px; border: 1px solid #daddd6; border-radius: 9px; background: white; color: #59605a; }
 .modal-actions .primary { border-color: #465e4b; background: #465e4b; color: white; }
 .modal-actions .primary:disabled { opacity: .45; cursor: default; }
-.chat-drawer { position: fixed; z-index: 9; top: 18px; right: 18px; bottom: 18px; width: min(390px, calc(100vw - 24px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid #d7dcd4; border-radius: 20px; background: #fbfbf7; box-shadow: 0 26px 80px rgba(31,39,33,.24); animation: chat-in .2s ease-out; }
+.chat-drawer { position: fixed; z-index: 9; top: 18px; right: 18px; bottom: 18px; width: min(390px, calc(100vw - 24px)); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid #d7dcd4; border-radius: 20px; background: #fbfbf7; box-shadow: 0 26px 80px rgba(31,39,33,.24); animation: chat-in .2s ease-out; }
 .chat-heading { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 20px 14px; border-bottom: 1px solid #e3e5df; }
 .chat-heading h2 { margin: 0; font-family: 'Newsreader', serif; font-size: 29px; }
 .assistant-config { display: inline-block; margin-top: 6px; padding: 4px 7px; border-radius: 99px; background: #eceee9; color: #7b837c; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .assistant-config.configured { background: #e2ece0; color: #526a56; }
 .chat-heading > button { width: 30px; height: 30px; display: grid; place-content: center; border: 0; border-radius: 50%; background: #eceee9; color: #707870; font-size: 20px; }
-.detected-task-strip { display: flex; gap: 9px; overflow-x: auto; padding: 12px 18px; border-bottom: 1px solid #e5e7e1; background: #f6f3e9; }
-.task-marker, .inline-task-marker { position: relative; flex: 0 0 auto; width: 35px; height: 35px; display: grid; place-content: center; border: 1px solid #cf9148; border-radius: 10px; background: #fff4df; color: #8b5b27; box-shadow: 0 0 0 3px rgba(207,145,72,.12); }
-.task-marker span, .inline-task-marker span { font-size: 18px; line-height: 1; }
-.task-marker b, .inline-task-marker b { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; display: grid; place-content: center; padding: 0 4px; border: 2px solid #fbfbf7; border-radius: 99px; background: #bd7732; color: white; font-size: 9px; }
+.inline-task-marker { position: relative; flex: 0 0 auto; width: 35px; height: 35px; display: grid; place-content: center; border: 1px solid #cf9148; border-radius: 10px; background: #fff4df; color: #8b5b27; box-shadow: 0 0 0 3px rgba(207,145,72,.12); }
+.inline-task-marker span { font-size: 18px; line-height: 1; }
+.inline-task-marker b { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; display: grid; place-content: center; padding: 0 4px; border: 2px solid #fbfbf7; border-radius: 99px; background: #bd7732; color: white; font-size: 9px; }
 .chat-messages { min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding: 20px; }
 .chat-empty { margin: auto; max-width: 245px; color: #858d86; text-align: center; font-size: 13px; line-height: 1.55; }
 .chat-empty span { color: #8d9e8f; font-size: 28px; }
