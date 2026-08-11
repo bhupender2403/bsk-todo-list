@@ -58,7 +58,7 @@ class TodoTypeResponse(BaseModel):
     created_at: datetime
 
 class TaskAnalysisRequest(BaseModel):
-    text: str = Field(min_length=3, max_length=10000)
+    text: str = Field(min_length=1, max_length=10000)
     answers: Dict[str, str] = Field(default_factory=dict)
 
 

@@ -199,3 +199,12 @@ def test_task_analysis_accepts_clarification_answers(monkeypatch):
     result = response.json()
     assert result["suggestion"]["start_date"] is not None
     assert result["suggestion"]["expected_duration_hours"] == 3
+
+
+def test_task_analysis_accepts_short_text(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        response = client.post("/api/task-analysis", json={"text": "Go"})
+
+    assert response.status_code == 200
+    assert response.json()["suggestion"]["title"] == "Go"

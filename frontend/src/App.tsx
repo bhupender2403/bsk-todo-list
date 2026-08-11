@@ -119,6 +119,16 @@ export default function App() {
     event.preventDefault()
     const text = chatInput.trim()
     if (!text) return
+    if (/^(?:hi|hello|hey|hi there|hello there)[!. ]*$/i.test(text)) {
+      const messageId = Date.now()
+      setChatInput('')
+      setChatMessages((current) => [
+        ...current,
+        { id: messageId, role: 'user', text },
+        { id: messageId + 1, role: 'assistant', text: 'Hello! Describe a task you want to create, and I’ll help fill in its details.' },
+      ])
+      return
+    }
     setAnalyzing(true)
     setError('')
     setChatInput('')
