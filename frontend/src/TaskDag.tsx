@@ -51,16 +51,11 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
             </g>
           ))}
 
-          {graph.edges.map((edge) => {
+          {graph.edges.map((edge, index) => {
             const from = graph.byId.get(edge.from)
             const to = graph.byId.get(edge.to)
             if (!from || !to) return null
-            const startX = from.x + from.width / 2
-            const startY = from.y + NODE_HEIGHT
-            const endX = to.x + to.width / 2
-            const endY = to.y
-            const vertical = Math.max(24, Math.abs(endY - startY) / 2)
-            return <path className="dag-edge dependency" d={`M ${startX} ${startY} C ${startX} ${startY + vertical}, ${endX} ${endY - vertical}, ${endX} ${endY}`} markerEnd="url(#dag-arrow-dependency)" key={`${edge.from}-${edge.to}`} />
+            return <path className="dag-edge dependency" d={dependencyPath(from, to, index)} markerEnd="url(#dag-arrow-dependency)" key={`${edge.from}-${edge.to}`} />
           })}
 
           {graph.nodes.map(({ todo, x, y, width }) => (
@@ -244,7 +239,7 @@ function layoutGraph(todos: Todo[]) {
     }
   }
 
-  const width = Math.max(760, ...nodes.map((node) => node.x + node.width + 50), (dates.length - 1) * DATE_STEP + 160)
+  const width = Math.max(760, ...nodes.map((node) => node.x + node.width + 120), (dates.length - 1) * DATE_STEP + 160)
   const height = Math.max(360, ...nodes.map((node) => node.y + NODE_HEIGHT + 28), ...groups.map((group) => group.y + group.height + 28))
   const timelinePositions = new Map(dates.map((date) => [date, dateX.get(date) ?? 50]))
   return { nodes, groups, edges, width, height, timeline: buildTimeline(todos, timelinePositions), byId: new Map(nodes.map((node) => [node.todo.id, node])) }
@@ -254,6 +249,27 @@ function taskSpanDays(todo: Todo, startDate: string) {
   if (todo.end_time) return Math.max(1, differenceInDays(startDate, todo.end_time.slice(0, 10)) + 1)
   if (todo.expected_duration_minutes) return Math.max(1, todo.expected_duration_minutes / 1440)
   return 1
+}
+
+function dependencyPath(from: NodePosition, to: NodePosition, index: number) {
+  const fromCenterY = from.y + NODE_HEIGHT / 2
+  const toCenterY = to.y + NODE_HEIGHT / 2
+  const fromRight = from.x + from.width
+  const toRight = to.x + to.width
+  const laneOffset = 28 + (index % 5) * 10
+
+  if (to.x >= fromRight + 8) {
+    const bend = (fromRight + to.x) / 2
+    return `M ${fromRight} ${fromCenterY} C ${bend} ${fromCenterY}, ${bend} ${toCenterY}, ${to.x} ${toCenterY}`
+  }
+
+  if (from.x >= toRight + 8) {
+    const bend = (from.x + toRight) / 2
+    return `M ${from.x} ${fromCenterY} C ${bend} ${fromCenterY}, ${bend} ${toCenterY}, ${toRight} ${toCenterY}`
+  }
+
+  const laneX = Math.max(fromRight, toRight) + laneOffset
+  return `M ${fromRight} ${fromCenterY} C ${laneX} ${fromCenterY}, ${laneX} ${toCenterY}, ${toRight} ${toCenterY}`
 }
 
 function differenceInDays(start: string, end: string) {
