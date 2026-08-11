@@ -111,12 +111,14 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .dag-node rect { fill: #fff; stroke: #d8ddd5; stroke-width: 1.5; filter: drop-shadow(0 4px 7px rgba(45,55,47,.07)); transition: stroke .15s, transform .15s; }
 .dag-node:hover rect { stroke: #7f9482; }
 .dag-node.selected rect { fill: #edf2eb; stroke: #66806b; stroke-width: 2; }
+.dag-node.non-participating { opacity: .42; filter: blur(.45px); }
 .dag-node.status-completed rect { fill: #f0f1ed; }
 .dag-node.status-running rect { fill: #edf3ea; stroke: #66806b; }
 .dag-node.status-scheduled rect { fill: #fff8ed; stroke: #c49a68; }
-.dag-node .dependency-endpoint { stroke: #617b67; stroke-width: 1.5; filter: none; }
-.dag-node .dependency-endpoint.depends { fill: #edf3ea; }
-.dag-node .dependency-endpoint.prerequisite { fill: #617b67; }
+.dag-edge-layer, .dependency-markers { pointer-events: none; }
+.dependency-endpoint { stroke: #617b67; stroke-width: 1.5; }
+.dependency-endpoint.depends { fill: #edf3ea; }
+.dependency-endpoint.prerequisite { fill: #617b67; }
 .dag-node text { pointer-events: none; }
 .dag-title { fill: #343b35; font-size: 13px; font-weight: 500; }
 .dag-node.status-completed .dag-title { fill: #969c96; text-decoration: line-through; }

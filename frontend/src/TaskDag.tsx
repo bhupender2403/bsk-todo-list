@@ -21,6 +21,14 @@ const ROW_GAP = 22
 export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) {
   const graph = useMemo(() => layoutGraph(todos), [todos])
   const timeline = useMemo(() => buildTimeline(todos), [todos])
+  const activeEdges = useMemo(
+    () => selectedId === null ? [] : graph.edges.filter((edge) => edge.from === selectedId || edge.to === selectedId),
+    [graph.edges, selectedId],
+  )
+  const participatingIds = useMemo(
+    () => new Set([...(selectedId === null ? [] : [selectedId]), ...activeEdges.flatMap((edge) => [edge.from, edge.to])]),
+    [activeEdges, selectedId],
+  )
 
   if (todos.length === 0) {
     return (
@@ -48,13 +56,22 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
             </g>
           ))}
 
-          {graph.edges.map((edge, index) => {
+          {graph.nodes.map(({ todo, x, y, width }) => (
+            <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''} ${selectedId !== null && !participatingIds.has(todo.id) ? 'non-participating' : ''}`} onClick={() => onSelect(todo.id)} onDoubleClick={() => onOpen(todo.id)} key={todo.id}>
+              <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
+              <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
+              {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}
+              <title>Task #{todo.id}: {todo.title}</title>
+            </g>
+          ))}
+
+          {activeEdges.map((edge, index) => {
             const from = graph.byId.get(edge.from)
             const to = graph.byId.get(edge.to)
             if (!from || !to) return null
             const route = dependencyRoute(from, to, index)
             return (
-              <g key={`${edge.from}-${edge.to}`}>
+              <g className="dag-edge-layer" key={`${edge.from}-${edge.to}`}>
                 <path className="dag-edge dependency" d={route.path} />
                 <path className="dependency-arrow" d="M -6 -4 L 6 0 L -6 4 Z" transform={`translate(${route.arrowX} ${route.arrowY}) rotate(${route.angle})`} />
               </g>
@@ -62,13 +79,9 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
           })}
 
           {graph.nodes.map(({ todo, x, y, width }) => (
-            <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''}`} onClick={() => onSelect(todo.id)} onDoubleClick={() => onOpen(todo.id)} key={todo.id}>
-              <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
-              {graph.edges.some((edge) => edge.to === todo.id) && <circle className="dependency-endpoint depends" cx={x - 6} cy={y + NODE_HEIGHT / 2} r="5" />}
-              {graph.edges.some((edge) => edge.from === todo.id) && <rect className="dependency-endpoint prerequisite" x={x + width + 1} y={y + NODE_HEIGHT / 2 - 5} width="10" height="10" rx="1" />}
-              <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
-              {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}
-              <title>Task #{todo.id}: {todo.title}</title>
+            <g className="dependency-markers" key={`markers-${todo.id}`}>
+              {activeEdges.some((edge) => edge.to === todo.id) && <circle className="dependency-endpoint depends" cx={x - 6} cy={y + NODE_HEIGHT / 2} r="5" />}
+              {activeEdges.some((edge) => edge.from === todo.id) && <rect className="dependency-endpoint prerequisite" x={x + width + 1} y={y + NODE_HEIGHT / 2 - 5} width="10" height="10" rx="1" />}
             </g>
           ))}
             </svg>
