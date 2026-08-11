@@ -29,6 +29,7 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
     () => new Set([...(selectedId === null ? [] : [selectedId]), ...activeEdges.flatMap((edge) => [edge.from, edge.to])]),
     [activeEdges, selectedId],
   )
+  const scheduleWarnings = useMemo(() => buildScheduleWarnings(todos), [todos])
 
   if (todos.length === 0) {
     return (
@@ -84,6 +85,16 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
               {activeEdges.some((edge) => edge.from === todo.id) && <rect className="dependency-endpoint prerequisite" x={x + width + 1} y={y + NODE_HEIGHT / 2 - 5} width="10" height="10" rx="1" />}
             </g>
           ))}
+
+          {graph.nodes.map(({ todo, x, y, width }) => {
+            const conflicts = scheduleWarnings.get(todo.id)
+            if (!conflicts?.length) return null
+            return <g className="schedule-warning" key={`warning-${todo.id}`}>
+              <circle cx={x + width - 15} cy={y + 15} r="10" />
+              <text x={x + width - 15} y={y + 19}>!</text>
+              <title>Scheduled to end before {conflicts.map((dependency) => `#${dependency.id} ${dependency.title}`).join(', ')} starts</title>
+            </g>
+          })}
             </svg>
           </div>
         </div>
@@ -267,6 +278,23 @@ function taskSpanDays(todo: Todo, startDate: string) {
   if (todo.end_time) return Math.max(1, differenceInDays(startDate, todo.end_time.slice(0, 10)) + 1)
   if (todo.expected_duration_minutes) return Math.max(1, todo.expected_duration_minutes / 1440)
   return 1
+}
+
+function buildScheduleWarnings(todos: Todo[]) {
+  const byId = new Map(todos.map((todo) => [todo.id, todo]))
+  const warnings = new Map<number, Todo[]>()
+  for (const todo of todos) {
+    if (!todo.start_time) continue
+    const start = new Date(todo.start_time).getTime()
+    const projectedEnd = todo.end_time
+      ? new Date(todo.end_time).getTime()
+      : start + (todo.expected_duration_minutes ?? 1440) * 60_000
+    const conflicts = todo.dependency_ids
+      .map((id) => byId.get(id))
+      .filter((dependency): dependency is Todo => Boolean(dependency?.start_time) && projectedEnd < new Date(dependency!.start_time!).getTime())
+    if (conflicts.length) warnings.set(todo.id, conflicts)
+  }
+  return warnings
 }
 
 function dependencyRoute(from: NodePosition, to: NodePosition, index: number) {
