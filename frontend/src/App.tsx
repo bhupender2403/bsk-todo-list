@@ -582,10 +582,10 @@ export default function App() {
               </div>
             </div>
             <div className="sprint-list">
-              <button className={`sprint-card ${selectedSprintId === null ? 'selected' : ''}`} onClick={() => setSelectedSprintId(null)}>
+              <button className={`sprint-card ${selectedSprintId === null ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(null); setDashboardMode('tasks') }}>
                 <strong>All tasks</strong><small>Full timeline</small>
               </button>
-              {sprints.map((sprint) => <button className={`sprint-card ${selectedSprintId === sprint.id ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(sprint.id); setSelectedId(null) }} key={sprint.id}>
+              {sprints.map((sprint) => <button className={`sprint-card ${selectedSprintId === sprint.id ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(sprint.id); setSelectedId(null); setDashboardMode('tasks') }} key={sprint.id}>
                 <strong>{sprint.name}</strong><small>{formatDate(sprint.created_at)} – {formatDate(sprint.end_date)}</small>
               </button>)}
             </div>
