@@ -41,10 +41,6 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
           <DateTimeline items={graph.timeline} width={graph.width} />
           <div className="dag-canvas">
             <svg viewBox={`0 0 ${graph.width} ${graph.height}`} width={graph.width} height={graph.height} role="img" aria-label="Task dependency graph">
-          <defs>
-            <marker id="dag-arrow-dependency" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker>
-          </defs>
-
           {graph.groups.map((group) => (
             <g className="dag-parent-group" key={group.id}>
               <rect x={group.x} y={group.y} width={group.width} height={group.height} rx="18" />
@@ -55,7 +51,13 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
             const from = graph.byId.get(edge.from)
             const to = graph.byId.get(edge.to)
             if (!from || !to) return null
-            return <path className="dag-edge dependency" d={dependencyPath(from, to, index)} markerEnd="url(#dag-arrow-dependency)" key={`${edge.from}-${edge.to}`} />
+            const route = dependencyRoute(from, to, index)
+            return (
+              <g key={`${edge.from}-${edge.to}`}>
+                <path className="dag-edge dependency" d={route.path} />
+                <path className="dependency-arrow" d="M -6 -4 L 6 0 L -6 4 Z" transform={`translate(${route.arrowX} ${route.arrowY}) rotate(${route.angle})`} />
+              </g>
+            )
           })}
 
           {graph.nodes.map(({ todo, x, y, width }) => (
@@ -251,7 +253,7 @@ function taskSpanDays(todo: Todo, startDate: string) {
   return 1
 }
 
-function dependencyPath(from: NodePosition, to: NodePosition, index: number) {
+function dependencyRoute(from: NodePosition, to: NodePosition, index: number) {
   const fromCenterY = from.y + NODE_HEIGHT / 2
   const toCenterY = to.y + NODE_HEIGHT / 2
   const fromRight = from.x + from.width
@@ -260,16 +262,29 @@ function dependencyPath(from: NodePosition, to: NodePosition, index: number) {
 
   if (to.x >= fromRight + 8) {
     const bend = (fromRight + to.x) / 2
-    return `M ${fromRight} ${fromCenterY} C ${bend} ${fromCenterY}, ${bend} ${toCenterY}, ${to.x} ${toCenterY}`
+    return cubicRoute(fromRight, fromCenterY, bend, fromCenterY, bend, toCenterY, to.x, toCenterY)
   }
 
   if (from.x >= toRight + 8) {
     const bend = (from.x + toRight) / 2
-    return `M ${from.x} ${fromCenterY} C ${bend} ${fromCenterY}, ${bend} ${toCenterY}, ${toRight} ${toCenterY}`
+    return cubicRoute(from.x, fromCenterY, bend, fromCenterY, bend, toCenterY, toRight, toCenterY)
   }
 
   const laneX = Math.max(fromRight, toRight) + laneOffset
-  return `M ${fromRight} ${fromCenterY} C ${laneX} ${fromCenterY}, ${laneX} ${toCenterY}, ${toRight} ${toCenterY}`
+  return cubicRoute(fromRight, fromCenterY, laneX, fromCenterY, laneX, toCenterY, toRight, toCenterY)
+}
+
+function cubicRoute(x0: number, y0: number, x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) {
+  const arrowX = (x0 + 3 * x1 + 3 * x2 + x3) / 8
+  const arrowY = (y0 + 3 * y1 + 3 * y2 + y3) / 8
+  const dx = 3 * (-x0 - x1 + x2 + x3) / 4
+  const dy = 3 * (-y0 - y1 + y2 + y3) / 4
+  return {
+    path: `M ${x0} ${y0} C ${x1} ${y1}, ${x2} ${y2}, ${x3} ${y3}`,
+    arrowX,
+    arrowY,
+    angle: Math.atan2(dy, dx) * 180 / Math.PI,
+  }
 }
 
 function differenceInDays(start: string, end: string) {
