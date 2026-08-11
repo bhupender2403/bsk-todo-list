@@ -448,6 +448,30 @@ export default function App() {
   return (
     <main>
       <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
+        <header className="app-header">
+          <div>
+            <p className="eyebrow">My life workspace</p>
+            <h1>Task dependencies</h1>
+            <p className="subtitle">See how your work connects.</p>
+          </div>
+          <div className="header-actions">
+            <button className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-expanded={sidebarOpen}>
+              <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
+            </button>
+            <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
+            <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
+              <span aria-hidden="true">◌</span> Chat
+            </button>
+            <div className="status-counters" aria-label="Task status counts">
+              {(['pending', 'scheduled', 'running', 'completed'] as const).map((status) => (
+                <div className={`status-count status-${status}`} key={status}>
+                  <strong>{statusCounts[status]}</strong><span>{status}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </header>
+
         <aside className="sidebar">
           <section className="sprint-sidebar-section">
             <div className="sidebar-heading sprint-heading">
@@ -497,30 +521,6 @@ export default function App() {
         </aside>
 
         <section className="workspace">
-          <header>
-            <div>
-              <p className="eyebrow">My life workspace</p>
-              <h1>Task dependencies</h1>
-              <p className="subtitle">See how your work connects.</p>
-            </div>
-            <div className="header-actions">
-              <button className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-expanded={sidebarOpen}>
-                <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
-              </button>
-              <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
-              <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
-                <span aria-hidden="true">◌</span> Chat
-              </button>
-              <div className="status-counters" aria-label="Task status counts">
-                {(['pending', 'scheduled', 'running', 'completed'] as const).map((status) => (
-                  <div className={`status-count status-${status}`} key={status}>
-                    <strong>{statusCounts[status]}</strong><span>{status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </header>
-
           {error && <p className="error" role="alert">{error}</p>}
 
           <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} />
