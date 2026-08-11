@@ -199,10 +199,22 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .aim-card-heading strong { font-size: 16px; }
 .aim-status { padding: 4px 7px; border-radius: 999px; background: #edf0e9; color: #556158; font-size: 10px; text-transform: uppercase; }
 .aim-card > p { margin: 10px 0 12px; color: #737a74; font-size: 12px; line-height: 1.45; }
-.aim-task-list { display: grid; gap: 6px; }
-.aim-task-list button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border: 1px solid #e2e5df; border-radius: 8px; background: white; color: #434a44; text-align: left; }
-.aim-task-list button span { color: #848b85; font-size: 10px; }
-.aim-task-list button.done { color: #7d857e; text-decoration: line-through; }
+.aim-task-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.aim-task-icon { position: relative; display: grid; place-items: center; width: 34px; height: 28px; padding: 0; border: 1px solid #dce1da; border-radius: 8px; background: white; color: #59635b; }
+.aim-task-icon > span { font-size: 10px; font-weight: 750; }
+.aim-task-icon.running { border-color: #8ca893; background: #e9f1e8; color: #425d48; }
+.aim-task-icon.completed { background: #eef0ed; color: #8b928c; }
+.aim-task-icon:hover, .aim-task-icon:focus-visible { z-index: 4; border-color: #718676; outline: none; }
+.aim-task-tooltip { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 20; display: none; width: 245px; padding: 11px; border: 1px solid #d9ded6; border-radius: 10px; background: #303832; color: white; box-shadow: 0 10px 28px rgba(33,42,35,.22); text-align: left; pointer-events: none; }
+.aim-task-icon:hover .aim-task-tooltip, .aim-task-icon:focus-visible .aim-task-tooltip { display: block; }
+.aim-task-tooltip::after { content: ''; position: absolute; top: 100%; left: 12px; border: 6px solid transparent; border-top-color: #303832; }
+.aim-task-tooltip strong { display: block; font-size: 12px; line-height: 1.35; }
+.aim-task-tooltip > small { display: block; margin-top: 3px; color: #bdc8c0; font-size: 9px; text-transform: capitalize; }
+.aim-task-tooltip p { margin: 8px 0; color: #e3e8e4; font-size: 10px; line-height: 1.4; }
+.aim-task-tooltip dl { display: grid; gap: 4px; margin: 8px 0 0; }
+.aim-task-tooltip dl div { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: 9px; }
+.aim-task-tooltip dt { color: #aebbb1; }
+.aim-task-tooltip dd { margin: 0; color: white; }
 .aim-empty { padding: 12px; border: 1px dashed #d7dbd4; border-radius: 8px; color: #909791; font-size: 11px; text-align: center; }
 .sprint-modal .modal-actions { margin-top: 8px; }
 .sprint-modal .modal-actions button { padding: 9px 12px; border: 1px solid #daddd6; border-radius: 9px; background: white; color: #59605a; }

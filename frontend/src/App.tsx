@@ -619,7 +619,22 @@ export default function App() {
               return <article className="aim-card" onDragOver={(event) => { event.stopPropagation(); if (draggingTaskId !== null) { event.preventDefault(); event.currentTarget.classList.add('drop-ready') } }} onDragLeave={(event) => event.currentTarget.classList.remove('drop-ready')} onDrop={(event) => { event.stopPropagation(); event.preventDefault(); event.currentTarget.classList.remove('drop-ready'); if (draggingTaskId !== null) void assignTaskToAim(draggingTaskId, aim.id) }} key={aim.id}>
                 <div className="aim-card-heading"><span>@{aim.id}</span><strong>{aim.name}</strong><b className="aim-status">{status}</b></div>
                 {aim.description && <p>{aim.description}</p>}
-                <div className="aim-task-list">{aimTasks.map((todo) => <button onClick={() => openTaskDetail(todo.id)} key={todo.id}><span>#{todo.id}</span>{todo.title}<small>{getTodoStatus(todo)}</small></button>)}</div>
+                <div className="aim-task-list">{aimTasks.map((todo) => {
+                  const status = getTodoStatus(todo)
+                  return <button className={`aim-task-icon ${status}`} onClick={() => openTaskDetail(todo.id)} aria-label={`Task #${todo.id}: ${todo.title}`} key={todo.id}>
+                    <span>#{todo.id}</span>
+                    <div className="aim-task-tooltip" role="tooltip">
+                      <strong>{todo.title}</strong>
+                      <small>#{todo.id} · {todo.todo_type} · {status}</small>
+                      {todo.description && <p>{todo.description}</p>}
+                      <dl>
+                        <div><dt>Start</dt><dd>{formatDateTime(todo.start_time)}</dd></div>
+                        <div><dt>End</dt><dd>{formatDateTime(todo.end_time)}</dd></div>
+                        <div><dt>Duration</dt><dd>{formatDuration(todo.expected_duration_minutes)}</dd></div>
+                      </dl>
+                    </div>
+                  </button>
+                })}</div>
               </article>
             })}
           </section>}
