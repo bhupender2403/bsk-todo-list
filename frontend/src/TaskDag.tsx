@@ -70,7 +70,7 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
             const from = graph.byId.get(edge.from)
             const to = graph.byId.get(edge.to)
             if (!from || !to) return null
-            const route = dependencyRoute(from, to, index)
+            const route = dependencyRoute(from, to, index, graph.nodes)
             return (
               <g className="dag-edge-layer" key={`${edge.from}-${edge.to}`}>
                 <path className="dag-edge dependency" d={route.path} />
@@ -297,40 +297,29 @@ function buildScheduleWarnings(todos: Todo[]) {
   return warnings
 }
 
-function dependencyRoute(from: NodePosition, to: NodePosition, index: number) {
+function dependencyRoute(from: NodePosition, to: NodePosition, index: number, nodes: NodePosition[]) {
   // A dependency edge starts at the dependent task's start and points to the
   // dependency task's end.
   const startX = to.x - 6
   const startY = to.y + NODE_HEIGHT / 2
   const endX = from.x + from.width + 6
   const endY = from.y + NODE_HEIGHT / 2
-  const laneOffset = 28 + (index % 5) * 10
+  const laneOffset = 18 + (index % 5) * 6
 
   if (Math.abs(startY - endY) < 1) {
     return straightRoute(startX, startY, endX, endY)
   }
 
-  if (startX >= endX + 8) {
-    return orthogonalRoute(startX, startY, (startX + endX) / 2, endX, endY)
-  }
-
-  const leftLaneX = Math.max(4, Math.min(startX, from.x) - laneOffset)
-  const rightLaneX = Math.max(to.x + to.width, endX) + laneOffset
-  const routeY = Math.max(4, Math.min(from.y, to.y) - laneOffset)
+  const leftEdge = Math.min(...nodes.map((node) => node.x))
+  const rightEdge = Math.max(...nodes.map((node) => node.x + node.width))
+  const leftLaneX = Math.max(4, leftEdge - laneOffset)
+  const rightLaneX = rightEdge + laneOffset
+  const routeY = 5 + (index % 3) * 7
   return {
     path: `M ${startX} ${startY} H ${leftLaneX} V ${routeY} H ${rightLaneX} V ${endY} H ${endX}`,
     arrowX: (leftLaneX + rightLaneX) / 2,
     arrowY: routeY,
     angle: 0,
-  }
-}
-
-function orthogonalRoute(startX: number, startY: number, laneX: number, endX: number, endY: number) {
-  return {
-    path: `M ${startX} ${startY} H ${laneX} V ${endY} H ${endX}`,
-    arrowX: laneX,
-    arrowY: (startY + endY) / 2,
-    angle: endY >= startY ? 90 : -90,
   }
 }
 
