@@ -16,6 +16,7 @@ class DetectionState(TypedDict, total=False):
     suggestion: Dict[str, object]
     clarification_questions: List[str]
     ai_powered: bool
+    analysis_source: str
 
 
 def extract_task(state: DetectionState) -> DetectionState:
@@ -24,7 +25,15 @@ def extract_task(state: DetectionState) -> DetectionState:
         combined += "\nClarifications:\n" + "\n".join(state["answers"].values())
     ai_suggestion = _openai_extract(combined, state)
     suggestion = ai_suggestion or _fallback_extract(combined, state)
-    return {"suggestion": suggestion, "ai_powered": ai_suggestion is not None}
+    return {
+        "suggestion": suggestion,
+        "ai_powered": ai_suggestion is not None,
+        "analysis_source": (
+            os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+            if ai_suggestion is not None
+            else "local"
+        ),
+    }
 
 
 def find_clarifications(state: DetectionState) -> DetectionState:

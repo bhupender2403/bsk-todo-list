@@ -77,3 +77,4 @@ class TaskAnalysisResponse(BaseModel):
     suggestion: TaskSuggestion
     clarification_questions: List[str]
     ai_powered: bool
+    analysis_source: str

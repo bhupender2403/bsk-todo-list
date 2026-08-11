@@ -47,6 +47,7 @@ export type TaskAnalysis = {
   }
   clarification_questions: string[]
   ai_powered: boolean
+  analysis_source: string
 }
 
 export function getTodoStatus(todo: Todo): TodoStatus {

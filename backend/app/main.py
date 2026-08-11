@@ -169,6 +169,7 @@ def analyze_task(payload: TaskAnalysisRequest, db: Session = Depends(get_db)):
         "suggestion": result["suggestion"],
         "clarification_questions": result["clarification_questions"],
         "ai_powered": result["ai_powered"],
+        "analysis_source": result["analysis_source"],
     }
 
 

@@ -548,9 +548,15 @@ export default function App() {
         <div className="chat-messages" aria-live="polite">
           {chatMessages.length === 0 && <div className="chat-empty"><span>✦</span><p>Describe something you need to do. I’ll detect the task and ask for any missing details.</p></div>}
           {chatMessages.map((message) => {
+            const detectedTask = message.taskNumber ? detectedTasks.find((item) => item.number === message.taskNumber) : undefined
             const task = message.taskNumber ? readyDetectedTasks.find((item) => item.number === message.taskNumber) : undefined
             return <div className={`chat-message ${message.role}`} key={message.id}>
-              <p>{message.text}</p>
+              <div className="chat-message-content">
+                <p>{message.text}</p>
+                {message.role === 'assistant' && detectedTask && <small className="analysis-source">
+                  {detectedTask.analysis.analysis_source === 'local' ? 'Local detector' : `OpenAI · ${detectedTask.analysis.analysis_source}`}
+                </small>}
+              </div>
               {task && <button className="inline-task-marker" onClick={() => openDetectedTask(task)} title={`Review task ${task.number}`}>
                 <span>＋</span><b>{task.number}</b>
               </button>}

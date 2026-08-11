@@ -178,6 +178,7 @@ def test_task_analysis_detects_fields_and_requests_clarification(monkeypatch):
     assert result["suggestion"]["expected_duration_hours"] == 2
     assert result["suggestion"]["start_date"] is not None
     assert result["ai_powered"] is False
+    assert result["analysis_source"] == "local"
     assert result["clarification_questions"] == []
 
 

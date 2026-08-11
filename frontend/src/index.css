@@ -167,7 +167,9 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .chat-empty { margin: auto; max-width: 245px; color: #858d86; text-align: center; font-size: 13px; line-height: 1.55; }
 .chat-empty span { color: #8d9e8f; font-size: 28px; }
 .chat-message { max-width: 86%; display: flex; align-items: flex-end; gap: 9px; }
+.chat-message-content { min-width: 0; display: grid; gap: 4px; }
 .chat-message p { margin: 0; padding: 11px 13px; border-radius: 14px 14px 14px 4px; background: #ecefe9; color: #4e5750; font-size: 12px; line-height: 1.5; }
+.analysis-source { padding-left: 6px; color: #8b928c; font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .chat-message.user { align-self: flex-end; flex-direction: row-reverse; }
 .chat-message.user p { border-radius: 14px 14px 4px 14px; background: #526b57; color: white; }
 .inline-task-marker { width: 29px; height: 29px; border-radius: 8px; }
