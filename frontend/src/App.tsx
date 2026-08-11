@@ -565,7 +565,7 @@ export default function App() {
             </button>) : <p>No task number matches #{taskReferenceQuery}</p>}
           </div>}
           {activeTaskNumber && <small>Answering about task <b>{activeTaskNumber}</b></small>}
-          <div><textarea ref={chatInputRef} value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'} rows={2} /><button type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button></div>
+          <div className="chat-composer-row"><textarea ref={chatInputRef} value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'} rows={2} /><button type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button></div>
         </form>
       </aside>}
     </main>
