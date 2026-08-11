@@ -33,6 +33,8 @@ export default function App() {
   const [sprintEndDate, setSprintEndDate] = useState('')
   const [sprintModalOpen, setSprintModalOpen] = useState(false)
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null)
+  const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null)
+  const [sprintDropActive, setSprintDropActive] = useState(false)
   const [sourceTaskNumber, setSourceTaskNumber] = useState<number | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
@@ -401,6 +403,15 @@ export default function App() {
     }
   }
 
+  async function assignDroppedTaskToSprint() {
+    if (draggingTaskId === null || selectedSprintId === null) return
+    const todo = todos.find((item) => item.id === draggingTaskId)
+    setSprintDropActive(false)
+    setDraggingTaskId(null)
+    if (!todo || todo.sprint_id === selectedSprintId) return
+    await updateTodo(todo, { sprint_id: selectedSprintId })
+  }
+
   function addDependencyByName() {
     const dependency = todos.find((item) => item.title.toLocaleLowerCase() === dependencyQuery.trim().toLocaleLowerCase())
     if (!dependency) {
@@ -520,7 +531,7 @@ export default function App() {
             {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
               <p className="sidebar-empty">No matching tasks.</p>
             ) : visibleTodos.map((todo) => (
-              <button className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''}`} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
+              <button draggable={selectedSprintId !== null} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => { setDraggingTaskId(null); setSprintDropActive(false) }} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
                   <small>#{todo.id} · {todo.todo_type} · {getTodoStatus(todo)}</small>
@@ -531,10 +542,10 @@ export default function App() {
           </div>
         </aside>
 
-        <section className="workspace">
+        <section className={`workspace ${sprintDropActive ? 'sprint-drop-ready' : ''}`} onDragOver={(event) => { if (selectedSprintId !== null && draggingTaskId !== null) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setSprintDropActive(true) } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSprintDropActive(false) }} onDrop={(event) => { event.preventDefault(); void assignDroppedTaskToSprint() }}>
           {error && <p className="error" role="alert">{error}</p>}
 
-          {selectedSprint && <div className="sprint-view-heading"><div><span>Sprint</span><strong>{selectedSprint.name}</strong></div><small>{formatDate(selectedSprint.created_at)} – {formatDate(selectedSprint.end_date)} · {dashboardTodos.length} task{dashboardTodos.length === 1 ? '' : 's'}</small></div>}
+          {selectedSprint && <div className="sprint-view-heading"><div><span>Sprint</span><strong>{selectedSprint.name}</strong></div><small>{sprintDropActive ? 'Drop to assign task' : `${formatDate(selectedSprint.created_at)} – ${formatDate(selectedSprint.end_date)} · ${dashboardTodos.length} task${dashboardTodos.length === 1 ? '' : 's'}`}</small></div>}
           <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} rangeStart={selectedSprint?.created_at.slice(0, 10)} rangeEnd={selectedSprint?.end_date} />
         </section>
       </section>

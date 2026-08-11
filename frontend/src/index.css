@@ -45,6 +45,8 @@ nav button.active { background: #dfe5dc; color: #405345; font-weight: 600; }
 .card-copy strong { overflow: hidden; font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .card-copy small { color: #969b95; font-size: 10px; }
 .task-card.completed .card-copy strong { color: #9ca19c; text-decoration: line-through; }
+.task-card[draggable="true"] { cursor: grab; }
+.task-card.dragging { opacity: .42; cursor: grabbing; }
 .card-check { color: #738575; font-size: 12px; }
 .sidebar-empty { padding: 35px 8px; color: #999f98; font-size: 12px; text-align: center; }
 
@@ -54,6 +56,8 @@ nav button.active { background: #dfe5dc; color: #405345; font-weight: 600; }
 .sprint-view-heading span { color: #899088; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .sprint-view-heading strong { color: #48534a; font-size: 14px; }
 .sprint-view-heading small { color: #858d86; font-size: 10px; }
+.workspace.sprint-drop-ready .sprint-view-heading { border-color: #78927c; background: #e7efe5; }
+.workspace.sprint-drop-ready .dag-panel { outline: 2px dashed #78927c; outline-offset: -5px; background: rgba(230,239,227,.7); }
 .app-header { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #e1e3dc; background: rgba(248,249,245,.88); }
 .app-header h1 { font-size: 27px; line-height: 1; }
 h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46px); line-height: .95; letter-spacing: -.03em; }
