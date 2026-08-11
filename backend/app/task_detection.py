@@ -60,8 +60,8 @@ def _openai_extract(text: str, state: DetectionState) -> Optional[Dict[str, obje
 
         prompt = """Extract a task from the user's text. Return JSON only with these keys:
 title, description, todo_type, start_date, expected_duration_days,
-expected_duration_hours, parent_name, dependency_names. start_date must be YYYY-MM-DD
-or null. Durations must be non-negative numbers. parent_name may be null and
+expected_duration_hours, dependency_names. start_date must be YYYY-MM-DD
+or null. Durations must be non-negative numbers and
 dependency_names must be an array. Use only the supplied existing type/task names
 when selecting relationships. Do not invent details.
 
@@ -109,11 +109,6 @@ def _fallback_extract(text: str, state: DetectionState) -> Dict[str, object]:
     matching_tasks = [
         name for name in state.get("task_names", []) if name.lower() in lowered
     ]
-    parent_name = None
-    for name in matching_tasks:
-        if re.search(r"(?:under|child of|part of)\s+" + re.escape(name.lower()), lowered):
-            parent_name = name
-            break
     dependencies = [
         name
         for name in matching_tasks
@@ -126,7 +121,6 @@ def _fallback_extract(text: str, state: DetectionState) -> Dict[str, object]:
         "start_date": start_date,
         "expected_duration_days": days,
         "expected_duration_hours": hours,
-        "parent_name": parent_name,
         "dependency_names": dependencies,
     }
 
@@ -142,9 +136,6 @@ def _normalize(value: Dict[str, object], state: DetectionState) -> Dict[str, obj
     todo_type = str(value.get("todo_type") or "General")
     if todo_type not in types:
         todo_type = "General"
-    parent = value.get("parent_name")
-    if parent not in tasks:
-        parent = None
     raw_dependencies = value.get("dependency_names") or []
     dependencies = [name for name in raw_dependencies if name in tasks]
     return {
@@ -154,7 +145,6 @@ def _normalize(value: Dict[str, object], state: DetectionState) -> Dict[str, obj
         "start_date": value.get("start_date"),
         "expected_duration_days": max(0, int(value.get("expected_duration_days") or 0)),
         "expected_duration_hours": max(0, int(value.get("expected_duration_hours") or 0)),
-        "parent_name": parent,
         "dependency_names": dependencies,
     }
 

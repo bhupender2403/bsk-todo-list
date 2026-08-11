@@ -139,27 +139,19 @@ def test_existing_workspace_is_migrated_to_general_type():
     assert [item["name"] for item in types] == ["General"]
 
 
-def test_parent_and_dependencies():
+def test_dependencies_and_cycles():
     with TestClient(app) as client:
-        parent = client.post("/api/todos", json={"title": "Parent"}).json()
         dependency = client.post("/api/todos", json={"title": "Dependency"}).json()
         child = client.post(
             "/api/todos",
             json={
                 "title": "Child",
-                "parent_id": parent["id"],
                 "dependency_ids": [dependency["id"]],
             },
         )
 
         assert child.status_code == 201
-        assert child.json()["parent_id"] == parent["id"]
         assert child.json()["dependency_ids"] == [dependency["id"]]
-
-        self_reference = client.patch(
-            f"/api/todos/{parent['id']}", json={"parent_id": parent["id"]}
-        )
-        assert self_reference.status_code == 422
 
         cycle = client.patch(
             f"/api/todos/{dependency['id']}",
@@ -292,14 +284,6 @@ def test_chat_task_commands_update_tasks():
             tasks[4]["id"],
             tasks[6]["id"],
         )
-
-        parent = client.post(
-            "/api/task-commands", json={"text": f"set #{task3} as parent of #{task4}"}
-        )
-        assert parent.status_code == 200
-        assert parent.json()["handled"] is True
-        assert parent.json()["source"] == "local"
-        assert parent.json()["todo"]["parent_id"] == task3
 
         dependency = client.post(
             "/api/task-commands", json={"text": f"#{task4} depend on #{task5}"}

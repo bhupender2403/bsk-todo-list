@@ -6,7 +6,6 @@ from typing import Dict, Optional
 
 
 TASK_TOOLS = [
-    {"type": "function", "function": {"name": "set_parent", "description": "Set one existing task as the parent of another.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "parent_id": {"type": "integer"}}, "required": ["task_id", "parent_id"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "add_dependency", "description": "Make a task depend on another existing task.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "dependency_id": {"type": "integer"}}, "required": ["task_id", "dependency_id"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "rename_task", "description": "Change the name or title of an existing task.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "title": {"type": "string"}}, "required": ["task_id", "title"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "set_estimated_duration", "description": "Set a task's estimated duration in days and hours.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "days": {"type": "integer", "minimum": 0}, "hours": {"type": "integer", "minimum": 0}}, "required": ["task_id", "days", "hours"], "additionalProperties": False}}},
@@ -47,8 +46,6 @@ def _openai_task_command(text: str) -> Optional[Dict[str, object]]:
 
 def _command_from_tool_call(name: str, arguments: Dict[str, object]) -> Optional[Dict[str, object]]:
     task_id = int(arguments["task_id"])
-    if name == "set_parent":
-        return {"action": "parent", "task_id": task_id, "parent_id": int(arguments["parent_id"])}
     if name == "add_dependency":
         return {"action": "dependency", "task_id": task_id, "dependency_id": int(arguments["dependency_id"])}
     if name == "rename_task":
@@ -64,7 +61,7 @@ def _has_explicit_task_ids(text: str, command: Dict[str, object]) -> bool:
     referenced_ids = {
         int(value)
         for key, value in command.items()
-        if key in {"task_id", "parent_id", "dependency_id"}
+        if key in {"task_id", "dependency_id"}
     }
     return bool(referenced_ids) and all(
         re.search(rf"#\s*{task_id}\b", text) is not None for task_id in referenced_ids
@@ -79,14 +76,6 @@ def _start_command(task_id: int, when: str) -> Dict[str, object]:
 
 def parse_task_command(text: str) -> Optional[Dict[str, object]]:
     command = " ".join(text.strip().rstrip(".!?").split())
-
-    match = re.fullmatch(r"set #(?P<parent>\d+) as parent of #(?P<task>\d+)", command, re.I)
-    if match:
-        return {
-            "action": "parent",
-            "task_id": int(match["task"]),
-            "parent_id": int(match["parent"]),
-        }
 
     match = re.fullmatch(
         r"(?:set )?#(?P<task>\d+) depends? on #(?P<dependency>\d+)",

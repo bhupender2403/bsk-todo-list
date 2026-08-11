@@ -45,7 +45,6 @@ def migrate_sqlite_schema() -> None:
     additions = {
         "description": "TEXT NOT NULL DEFAULT ''",
         "todo_type": "VARCHAR(60) NOT NULL DEFAULT 'General'",
-        "parent_id": "INTEGER",
         "sprint_id": "INTEGER",
         "start_time": "DATETIME",
         "end_time": "DATETIME",
@@ -143,8 +142,8 @@ def validate_schedule(start_time, end_time) -> None:
         raise HTTPException(status_code=422, detail="End time cannot be before start time")
 
 
-def validate_dag(todo_id: int, parent_id, dependencies: List[Todo], db: Session) -> None:
-    pending = ([parent_id] if parent_id is not None else []) + [item.id for item in dependencies]
+def validate_dag(todo_id: int, dependencies: List[Todo], db: Session) -> None:
+    pending = [item.id for item in dependencies]
     visited = set()
     while pending:
         current_id = pending.pop()
@@ -154,8 +153,6 @@ def validate_dag(todo_id: int, parent_id, dependencies: List[Todo], db: Session)
             continue
         visited.add(current_id)
         current = find_todo(current_id, db)
-        if current.parent_id is not None:
-            pending.append(current.parent_id)
         pending.extend(current.dependency_ids)
 
 
@@ -231,11 +228,7 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
     task_id = int(command["task_id"])
     todo = find_todo(task_id, db)
     action = command["action"]
-    if action == "parent":
-        parent_id = int(command["parent_id"])
-        todo = update_todo(task_id, TodoUpdate(parent_id=parent_id), db)
-        message = f"Set #{parent_id} as the parent of #{task_id}."
-    elif action == "dependency":
+    if action == "dependency":
         dependency_id = int(command["dependency_id"])
         dependency_ids = list(dict.fromkeys([*todo.dependency_ids, dependency_id]))
         todo = update_todo(task_id, TodoUpdate(dependency_ids=dependency_ids), db)
@@ -284,8 +277,6 @@ def create_todo_type(payload: TodoTypeCreate, db: Session = Depends(get_db)) -> 
 def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
     type_name = clean_type_name(payload.todo_type)
     find_or_create_type(type_name, db)
-    if payload.parent_id is not None:
-        find_todo(payload.parent_id, db)
     if payload.sprint_id is not None and db.get(Sprint, payload.sprint_id) is None:
         raise HTTPException(status_code=422, detail="Sprint does not exist")
     validate_schedule(payload.start_time, payload.end_time)
@@ -294,7 +285,6 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
         title=clean_title(payload.title),
         description=payload.description.strip(),
         todo_type=type_name,
-        parent_id=payload.parent_id,
         sprint_id=payload.sprint_id,
         start_time=payload.start_time,
         end_time=payload.end_time,
@@ -329,10 +319,6 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
             raise HTTPException(status_code=422, detail="Todo type cannot be null")
         changes["todo_type"] = clean_type_name(changes["todo_type"])
         find_or_create_type(changes["todo_type"], db)
-    if changes.get("parent_id") == todo.id:
-        raise HTTPException(status_code=422, detail="A task cannot be its own parent")
-    if changes.get("parent_id") is not None and "parent_id" in changes:
-        find_todo(changes["parent_id"], db)
     if changes.get("sprint_id") is not None and "sprint_id" in changes:
         if db.get(Sprint, changes["sprint_id"]) is None:
             raise HTTPException(status_code=422, detail="Sprint does not exist")
@@ -352,8 +338,7 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
         if todo.id in dependency_ids:
             raise HTTPException(status_code=422, detail="A task cannot depend on itself")
         new_dependencies = find_todos(dependency_ids, db)
-    new_parent_id = changes.get("parent_id", todo.parent_id)
-    validate_dag(todo.id, new_parent_id, new_dependencies, db)
+    validate_dag(todo.id, new_dependencies, db)
     todo.dependencies = new_dependencies
     for field, value in changes.items():
         setattr(todo, field, value)

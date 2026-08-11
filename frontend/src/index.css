@@ -123,12 +123,10 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .dag-legend { display: flex; justify-content: flex-end; gap: 18px; padding: 13px 17px; border-bottom: 1px solid #e5e6df; color: #7f867f; font-size: 11px; }
 .dag-legend span { display: flex; align-items: center; gap: 6px; }
 .dag-legend i { width: 21px; height: 2px; display: inline-block; background: #718a76; }
-.dag-legend .group-key i { width: 18px; height: 12px; border: 1px solid #c6cec3; border-radius: 4px; background: #f2f5ef; }
 .dag-scroll { max-width: 100%; overflow: auto; }
 .dag-aligned-content { min-width: 100%; }
 .dag-canvas { padding: 0; }
 .dag-canvas svg { display: block; }
-.dag-parent-group rect { fill: #f3f5f0; stroke: #cdd5ca; stroke-width: 1.5; }
 .dag-edge { fill: none; stroke: #718a76; stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; opacity: .72; }
 .dependency-arrow { fill: #718a76; opacity: .9; }
 .dag-node { cursor: pointer; }
@@ -167,7 +165,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .type-control input, .type-control select { min-width: 0; flex: 1; }
 .type-control button { flex: 0 0 auto; padding: 8px 10px; border: 1px solid #daddd6; border-radius: 9px; background: #f3f4ef; color: #58635a; font-size: 11px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.identity-row { grid-template-columns: 1.15fr 1fr .8fr; }
+.identity-row { grid-template-columns: 1.2fr .8fr; }
 .schedule-form-row { grid-template-columns: 1fr 1.15fr 1.45fr; }
 .date-time-control { position: relative; }
 .date-time-control input { padding-right: 43px; cursor: pointer; }

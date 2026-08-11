@@ -14,7 +14,6 @@ export default function App() {
   const [selectedType, setSelectedType] = useState('General')
   const [newType, setNewType] = useState('')
   const [creatingType, setCreatingType] = useState(false)
-  const [parentName, setParentName] = useState('')
   const [taskSprintId, setTaskSprintId] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -87,7 +86,7 @@ export default function App() {
     const byId = new Map(todos.map((todo) => [todo.id, todo]))
     const related = new Map(todos.map((todo) => [todo.id, new Set<number>()]))
     for (const todo of todos) {
-      const linked = [todo.parent_id, ...todo.dependency_ids].filter((id): id is number => id !== null && byId.has(id))
+      const linked = todo.dependency_ids.filter((id) => byId.has(id))
       for (const id of linked) {
         related.get(todo.id)?.add(id)
         related.get(id)?.add(todo.id)
@@ -204,7 +203,6 @@ export default function App() {
     setSelectedType(suggestion.todo_type)
     setCreatingType(false)
     setNewType('')
-    setParentName(suggestion.parent_name ?? '')
     setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
     setStartTime(suggestion.start_date ?? '')
     setEndTime('')
@@ -272,16 +270,11 @@ export default function App() {
       if (creatingType) {
         typeName = newType
       }
-      const parent = parentName.trim()
-        ? todos.find((item) => item.title.toLocaleLowerCase() === parentName.trim().toLocaleLowerCase())
-        : null
-      if (parentName.trim() && !parent) throw new Error('Select a valid parent task by name')
       const minutes = (Number(durationDays) || 0) * 1440 + (Number(durationHours) || 0) * 60
       const input = {
         title,
         description,
         todo_type: typeName,
-        parent_id: parent?.id ?? null,
         sprint_id: taskSprintId ? Number(taskSprintId) : null,
         start_time: startTime ? `${startTime}T00:00:00` : null,
         end_time: endTime || null,
@@ -308,7 +301,6 @@ export default function App() {
       setAddModalOpen(false)
       setCreatingType(false)
       setNewType('')
-      setParentName('')
       setTaskSprintId('')
       setStartTime('')
       setEndTime('')
@@ -334,7 +326,6 @@ export default function App() {
     setSelectedType(types[0] ?? 'General')
     setCreatingType(false)
     setNewType('')
-    setParentName('')
     setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
     setStartTime('')
     setEndTime('')
@@ -356,7 +347,6 @@ export default function App() {
     setSelectedType(todo.todo_type)
     setCreatingType(false)
     setNewType('')
-    setParentName(todo.parent_id ? taskName(todo.parent_id) : '')
     setTaskSprintId(todo.sprint_id === null ? '' : String(todo.sprint_id))
     setStartTime(todo.start_time?.slice(0, 10) ?? '')
     setEndTime(todo.end_time?.slice(0, 16) ?? '')
@@ -394,7 +384,7 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
-  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'parent_id' | 'sprint_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
     try {
       const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
@@ -562,7 +552,6 @@ export default function App() {
             <p className={selectedTodo.description ? 'task-description' : 'task-description empty'}>{selectedTodo.description || 'No description added.'}</p>
             <div className="detail-fields">
               <label>Type<select value={selectedTodo.todo_type} onChange={(event) => updateTodo(selectedTodo, { todo_type: event.target.value })}>{types.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
-              <div><span>Parent</span><strong>{taskName(selectedTodo.parent_id)}</strong></div>
               <div><span>Sprint</span><strong>{sprints.find((sprint) => sprint.id === selectedTodo.sprint_id)?.name ?? 'None'}</strong></div>
               <label>Start date
                 <div className="date-time-control detail-date-time">
@@ -614,10 +603,6 @@ export default function App() {
                       {creatingType ? 'Existing' : '+ New'}
                     </button>
                   </div>
-                </label>
-                <label>Parent task <small>Optional — search by exact name</small>
-                  <input list="parent-tasks" value={parentName} onChange={(event) => setParentName(event.target.value)} placeholder="None" />
-                  <datalist id="parent-tasks">{todos.filter((item) => item.id !== editingId).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
                 </label>
                 <label>Sprint <small>Optional</small>
                   <select value={taskSprintId} onChange={(event) => setTaskSprintId(event.target.value)}>

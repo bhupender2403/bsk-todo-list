@@ -4,7 +4,6 @@ export type Todo = {
   description: string
   todo_type: string
   completed: boolean
-  parent_id: number | null
   sprint_id: number | null
   start_time: string | null
   end_time: string | null
@@ -19,7 +18,6 @@ export type TodoInput = {
   title: string
   description: string
   todo_type: string
-  parent_id: number | null
   sprint_id: number | null
   start_time: string | null
   end_time: string | null
@@ -44,7 +42,6 @@ export type TaskAnalysis = {
     start_date: string | null
     expected_duration_days: number
     expected_duration_hours: number
-    parent_name: string | null
     dependency_names: string[]
   }
   clarification_questions: string[]
@@ -105,7 +102,7 @@ export const api = {
     request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
   create: (input: TodoInput) =>
     request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
-  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'parent_id' | 'sprint_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
+  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
     request<Todo>(`/api/todos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),
