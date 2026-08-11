@@ -64,6 +64,8 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
           {graph.nodes.map(({ todo, x, y, width }) => (
             <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''}`} onClick={() => onSelect(todo.id)} onDoubleClick={() => onOpen(todo.id)} key={todo.id}>
               <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
+              {graph.edges.some((edge) => edge.to === todo.id) && <circle className="dependency-endpoint depends" cx={x - 6} cy={y + NODE_HEIGHT / 2} r="5" />}
+              {graph.edges.some((edge) => edge.from === todo.id) && <rect className="dependency-endpoint prerequisite" x={x + width + 1} y={y + NODE_HEIGHT / 2 - 5} width="10" height="10" rx="1" />}
               <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
               {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}
               <title>Task #{todo.id}: {todo.title}</title>
@@ -257,9 +259,9 @@ function taskSpanDays(todo: Todo, startDate: string) {
 function dependencyRoute(from: NodePosition, to: NodePosition, index: number) {
   // A dependency edge starts at the dependent task's start and points to the
   // dependency task's end.
-  const startX = to.x
+  const startX = to.x - 6
   const startY = to.y + NODE_HEIGHT / 2
-  const endX = from.x + from.width
+  const endX = from.x + from.width + 6
   const endY = from.y + NODE_HEIGHT / 2
   const laneOffset = 28 + (index % 5) * 10
 
