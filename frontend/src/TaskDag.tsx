@@ -29,7 +29,7 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
     () => new Set([...(selectedId === null ? [] : [selectedId]), ...activeEdges.flatMap((edge) => [edge.from, edge.to])]),
     [activeEdges, selectedId],
   )
-  const scheduleWarnings = useMemo(() => buildScheduleWarnings(todos), [todos])
+  const taskIssues = useMemo(() => buildTaskIssues(todos), [todos])
 
   if (todos.length === 0) {
     return (
@@ -87,12 +87,12 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
           ))}
 
           {graph.nodes.map(({ todo, x, y, width }) => {
-            const conflicts = scheduleWarnings.get(todo.id)
-            if (!conflicts?.length) return null
+            const issues = taskIssues.get(todo.id)
+            if (!issues?.length) return null
             return <g className="schedule-warning" key={`warning-${todo.id}`}>
               <circle cx={x + width - 15} cy={y + 15} r="10" />
               <text x={x + width - 15} y={y + 19}>!</text>
-              <title>Scheduled to end before {conflicts.map((dependency) => `#${dependency.id} ${dependency.title}`).join(', ')} starts</title>
+              <title>{issues.join('\n')}</title>
             </g>
           })}
             </svg>
@@ -280,19 +280,28 @@ function taskSpanDays(todo: Todo, startDate: string) {
   return 1
 }
 
-function buildScheduleWarnings(todos: Todo[]) {
+function buildTaskIssues(todos: Todo[]) {
   const byId = new Map(todos.map((todo) => [todo.id, todo]))
-  const warnings = new Map<number, Todo[]>()
+  const warnings = new Map<number, string[]>()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
   for (const todo of todos) {
     if (!todo.start_time) continue
     const start = new Date(todo.start_time).getTime()
     const projectedEnd = todo.end_time
       ? new Date(todo.end_time).getTime()
       : start + (todo.expected_duration_minutes ?? 1440) * 60_000
+    const issues: string[] = []
+    if (!todo.end_time && projectedEnd < today.getTime()) {
+      issues.push(`Overdue: projected end ${new Date(projectedEnd).toLocaleDateString()} passed before today`)
+    }
     const conflicts = todo.dependency_ids
       .map((id) => byId.get(id))
       .filter((dependency): dependency is Todo => Boolean(dependency?.start_time) && projectedEnd < new Date(dependency!.start_time!).getTime())
-    if (conflicts.length) warnings.set(todo.id, conflicts)
+    for (const dependency of conflicts) {
+      issues.push(`Dependency timing: ends before #${dependency.id} ${dependency.title} starts`)
+    }
+    if (issues.length) warnings.set(todo.id, issues)
   }
   return warnings
 }
