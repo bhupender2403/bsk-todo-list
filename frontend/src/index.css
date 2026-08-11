@@ -182,12 +182,14 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .task-reference-tooltip button span { min-width: 0; flex: 1; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .task-reference-tooltip p { margin: 0; padding: 10px; color: #939993; font-size: 11px; text-align: center; }
 .chat-composer > small { display: block; margin-bottom: 7px; color: #8b6b47; font-size: 10px; }
+.chat-composer-toolbar { display: flex; justify-content: flex-end; margin-bottom: 7px; }
+.chat-composer-toolbar .clear-chat { padding: 5px 8px; border: 0; border-radius: 7px; background: #e9ece6; color: #717a72; font-size: 9px; font-weight: 600; }
+.chat-composer-toolbar .clear-chat:disabled { opacity: .4; cursor: default; }
 .chat-composer-row { display: flex; align-items: flex-end; gap: 8px; }
 .chat-composer textarea { min-width: 0; flex: 1; resize: none; padding: 11px 12px; border: 1px solid #d7dcd4; border-radius: 11px; outline: 0; background: white; color: #343a35; font: inherit; font-size: 12px; line-height: 1.4; }
 .chat-composer textarea:focus { border-color: #819585; box-shadow: 0 0 0 3px rgba(89,117,94,.09); }
 .chat-composer-row > button { height: 38px; display: grid; place-content: center; border: 0; border-radius: 10px; }
 .chat-composer-row > button:disabled { opacity: .45; cursor: default; }
-.chat-composer-row .clear-chat { padding: 0 9px; background: #e9ece6; color: #717a72; font-size: 10px; font-weight: 600; }
 .chat-composer-row .send-chat { width: 38px; background: #465e4b; color: white; font-size: 18px; }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
