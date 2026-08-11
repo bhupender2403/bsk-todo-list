@@ -11,12 +11,12 @@ type Props = {
 type Edge = { from: number; to: number }
 type NodePosition = { todo: Todo; x: number; y: number; width: number }
 type ParentGroup = { id: number; x: number; y: number; width: number; height: number }
-const NODE_HEIGHT = 52
+const NODE_HEIGHT = 38
 const GROUP_PADDING = 14
 const DATE_STEP = 110
 const DAY_BAR_GAP = 12
 const MIN_NODE_WIDTH = 52
-const ROW_GAP = 22
+const ROW_GAP = 16
 
 export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) {
   const graph = useMemo(() => layoutGraph(todos), [todos])
@@ -59,9 +59,9 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
 
           {graph.nodes.map(({ todo, x, y, width }) => (
             <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''} ${selectedId !== null && !participatingIds.has(todo.id) ? 'non-participating' : ''}`} onClick={() => onSelect(todo.id)} onDoubleClick={() => onOpen(todo.id)} key={todo.id}>
-              <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
-              <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
-              {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}
+              <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="9" />
+              <text className="dag-title" x={x + 12} y={y + 24}>{nodeLabel(todo, width)}</text>
+              {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 24}>✓</text>}
               <title>{[
                 `Task #${todo.id}: ${todo.title}`,
                 ...(taskIssues.get(todo.id)?.map((issue) => `Warning: ${issue}`) ?? []),
@@ -93,8 +93,8 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
             const issues = taskIssues.get(todo.id)
             if (!issues?.length) return null
             return <g className="schedule-warning" key={`warning-${todo.id}`}>
-              <circle cx={x + width - 15} cy={y + 15} r="10" />
-              <text x={x + width - 15} y={y + 19}>!</text>
+              <circle cx={x + width - 12} cy={y + 11} r="8" />
+              <text x={x + width - 12} y={y + 15}>!</text>
               <title>{issues.join('\n')}</title>
             </g>
           })}

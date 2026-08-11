@@ -125,7 +125,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .dependency-endpoint.prerequisite { fill: #617b67; }
 .schedule-warning { pointer-events: none; }
 .schedule-warning circle { fill: #fff2d8; stroke: #c77b2f; stroke-width: 1.5; filter: drop-shadow(0 2px 3px rgba(89,54,20,.16)); }
-.schedule-warning text { fill: #a85f20; font-size: 12px; font-weight: 700; text-anchor: middle; }
+.schedule-warning text { fill: #a85f20; font-size: 10px; font-weight: 700; text-anchor: middle; }
 .dag-node text { pointer-events: none; }
 .dag-title { fill: #343b35; font-size: 13px; font-weight: 500; }
 .dag-node.status-completed .dag-title { fill: #969c96; text-decoration: line-through; }
