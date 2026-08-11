@@ -131,7 +131,7 @@ export default function App() {
       ])
       return
     }
-    if (/^(?:set|update)\s+#\d+/i.test(text)) {
+    if (/^(?:(?:set|update)\s+)?#\d+\s+depend(?:s)?\s+on\s+#\d+/i.test(text) || /^(?:set|update)\s+#\d+/i.test(text)) {
       const messageId = Date.now()
       setAnalyzing(true)
       setError('')

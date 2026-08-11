@@ -245,7 +245,7 @@ def test_chat_task_commands_update_tasks():
         assert parent.json()["todo"]["parent_id"] == task3
 
         dependency = client.post(
-            "/api/task-commands", json={"text": f"set #{task4} depends on #{task5}"}
+            "/api/task-commands", json={"text": f"#{task4} depend on #{task5}"}
         )
         assert dependency.json()["todo"]["dependency_ids"] == [task5]
 

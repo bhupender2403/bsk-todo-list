@@ -14,7 +14,11 @@ def parse_task_command(text: str) -> Optional[Dict[str, object]]:
             "parent_id": int(match["parent"]),
         }
 
-    match = re.fullmatch(r"set #(?P<task>\d+) depends on #(?P<dependency>\d+)", command, re.I)
+    match = re.fullmatch(
+        r"(?:set )?#(?P<task>\d+) depends? on #(?P<dependency>\d+)",
+        command,
+        re.I,
+    )
     if match:
         return {
             "action": "dependency",
