@@ -1,5 +1,5 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { api, getTodoStatus, type TaskAnalysis, type Todo } from './api'
+import { api, getTodoStatus, type TaskAnalysis, type TaskAnalysisConfig, type Todo } from './api'
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
@@ -26,6 +26,7 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [detectedTasks, setDetectedTasks] = useState<DetectedTask[]>([])
   const [activeTaskNumber, setActiveTaskNumber] = useState<number | null>(null)
+  const [taskAnalysisConfig, setTaskAnalysisConfig] = useState<TaskAnalysisConfig | null>(null)
   const [sourceTaskNumber, setSourceTaskNumber] = useState<number | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
@@ -44,10 +45,11 @@ export default function App() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    Promise.all([api.list(), api.listTypes()])
-      .then(([items, todoTypes]) => {
+    Promise.all([api.list(), api.listTypes(), api.taskAnalysisConfig()])
+      .then(([items, todoTypes, analysisConfig]) => {
         setTodos(items)
         setTypes(todoTypes.map((item) => item.name))
+        setTaskAnalysisConfig(analysisConfig)
         setSelectedId(items[0]?.id ?? null)
       })
       .catch(showError)
@@ -547,7 +549,11 @@ export default function App() {
 
       {chatOpen && <aside className="chat-drawer" aria-label="Task detection chat">
         <div className="chat-heading">
-          <div><p className="eyebrow">Task assistant</p><h2>Chat</h2></div>
+          <div><p className="eyebrow">Task assistant</p><h2>Chat</h2>
+            <span className={`assistant-config ${taskAnalysisConfig?.openai_configured ? 'configured' : 'local'}`}>
+              {taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'Local detector'}
+            </span>
+          </div>
           <button onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
         </div>
         {readyDetectedTasks.length > 0 && <div className="detected-task-strip" aria-label="Tasks ready to create">

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import os
 from typing import Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException, Response, status
@@ -12,6 +13,7 @@ from .models import Todo, TodoType
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
+    TaskAnalysisConfigResponse,
     TodoCreate,
     TodoResponse,
     TodoTypeCreate,
@@ -170,6 +172,15 @@ def analyze_task(payload: TaskAnalysisRequest, db: Session = Depends(get_db)):
         "clarification_questions": result["clarification_questions"],
         "ai_powered": result["ai_powered"],
         "analysis_source": result["analysis_source"],
+    }
+
+
+@app.get("/api/task-analysis/config", response_model=TaskAnalysisConfigResponse)
+def task_analysis_config():
+    configured = bool(os.getenv("OPENAI_API_KEY"))
+    return {
+        "openai_configured": configured,
+        "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini") if configured else None,
     }
 
 

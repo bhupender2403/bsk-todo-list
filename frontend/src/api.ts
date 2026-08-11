@@ -50,6 +50,11 @@ export type TaskAnalysis = {
   analysis_source: string
 }
 
+export type TaskAnalysisConfig = {
+  openai_configured: boolean
+  model: string | null
+}
+
 export function getTodoStatus(todo: Todo): TodoStatus {
   if (todo.end_time) return 'completed'
   if (todo.is_running) return 'running'
@@ -74,6 +79,7 @@ export const api = {
   listTypes: () => request<TodoType[]>('/api/todo-types'),
   analyzeTask: (text: string, answers: Record<string, string> = {}) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
+  taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),
   createType: (name: string) =>
     request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
   create: (input: TodoInput) =>

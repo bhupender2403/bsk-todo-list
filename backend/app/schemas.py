@@ -78,3 +78,8 @@ class TaskAnalysisResponse(BaseModel):
     clarification_questions: List[str]
     ai_powered: bool
     analysis_source: str
+
+
+class TaskAnalysisConfigResponse(BaseModel):
+    openai_configured: bool
+    model: Optional[str] = None

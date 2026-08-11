@@ -208,3 +208,16 @@ def test_task_analysis_accepts_short_text(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["suggestion"]["title"] == "Go"
+
+
+def test_task_analysis_config_does_not_expose_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "secret-value")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+    with TestClient(app) as client:
+        response = client.get("/api/task-analysis/config")
+
+    assert response.json() == {
+        "openai_configured": True,
+        "model": "test-model",
+    }
+    assert "secret-value" not in response.text
