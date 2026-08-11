@@ -136,6 +136,21 @@ export default function App() {
     (counts, todo) => ({ ...counts, [getTodoStatus(todo)]: counts[getTodoStatus(todo)] + 1 }),
     { pending: 0, scheduled: 0, running: 0, completed: 0 },
   ), [todos])
+  const atRiskTasks = useMemo(() => {
+    const now = Date.now()
+    const dueSoonWindow = 3 * 24 * 60 * 60 * 1000
+    return todos
+      .filter((todo) => getTodoStatus(todo) !== 'completed')
+      .map((todo) => {
+        const start = todo.start_time ? new Date(todo.start_time).getTime() : null
+        const dueAt = todo.end_time
+          ? new Date(todo.end_time).getTime()
+          : start === null ? null : start + (todo.expected_duration_minutes ?? 1440) * 60 * 1000
+        return dueAt === null ? null : { todo, dueAt, remainingMs: dueAt - now }
+      })
+      .filter((item): item is { todo: Todo; dueAt: number; remainingMs: number } => item !== null && item.remainingMs <= dueSoonWindow)
+      .sort((first, second) => first.remainingMs - second.remainingMs)
+  }, [todos])
 
   function showError(reason: unknown) {
     setError(reason instanceof Error ? reason.message : 'Something went wrong')
@@ -504,6 +519,12 @@ export default function App() {
     return [days && `${days}d`, hours && `${hours}h`].filter(Boolean).join(' ') || `${minutes}m`
   }
 
+  function formatDeadlineRisk(remainingMs: number) {
+    const absoluteHours = Math.max(1, Math.ceil(Math.abs(remainingMs) / (60 * 60 * 1000)))
+    const amount = absoluteHours >= 24 ? `${Math.ceil(absoluteHours / 24)}d` : `${absoluteHours}h`
+    return remainingMs < 0 ? `${amount} late` : `Due in ${amount}`
+  }
+
   function advanceTask(todo: Todo) {
     const status = getTodoStatus(todo)
     if (status === 'completed') {
@@ -639,6 +660,25 @@ export default function App() {
             })}
           </section>}
         </section>
+
+        <aside className="risk-sidebar" aria-label="Tasks at risk">
+          <div className="risk-sidebar-heading">
+            <p className="eyebrow">Attention</p>
+            <h2>At risk</h2>
+            <span>{atRiskTasks.length}</span>
+          </div>
+          <p className="risk-summary">Late and due within 3 days</p>
+          <div className="risk-task-list">
+            {atRiskTasks.length === 0 ? <p className="risk-empty">Nothing is late or due soon.</p> : atRiskTasks.map(({ todo, dueAt, remainingMs }) => (
+              <button className={`risk-task ${remainingMs < 0 ? 'late' : 'due-soon'}`} onClick={() => { setSelectedId(todo.id); openTaskDetail(todo.id) }} key={todo.id}>
+                <span className="risk-rank">#{todo.id}</span>
+                <strong>{todo.title}</strong>
+                <small>{new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(dueAt))}</small>
+                <b>{formatDeadlineRisk(remainingMs)}</b>
+              </button>
+            ))}
+          </div>
+        </aside>
       </section>
 
       {detailModalOpen && selectedTodo && (
