@@ -19,6 +19,12 @@ export default function App() {
   const [durationHours, setDurationHours] = useState('')
   const [dependencyQuery, setDependencyQuery] = useState('')
   const [dependencyIds, setDependencyIds] = useState<number[]>([])
+  const [analysisText, setAnalysisText] = useState('')
+  const [analysisQuestions, setAnalysisQuestions] = useState<string[]>([])
+  const [analysisAnswers, setAnalysisAnswers] = useState<Record<string, string>>({})
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisPowered, setAnalysisPowered] = useState(false)
+  const [analysisDone, setAnalysisDone] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [query, setQuery] = useState('')
@@ -94,6 +100,40 @@ export default function App() {
     setError(reason instanceof Error ? reason.message : 'Something went wrong')
   }
 
+  async function analyzeTask() {
+    const text = analysisText.trim() || [title, description].filter(Boolean).join('. ')
+    if (!text) {
+      setError('Describe the task before detecting its details')
+      return
+    }
+    setAnalyzing(true)
+    setError('')
+    try {
+      const result = await api.analyzeTask(text, analysisAnswers)
+      const suggestion = result.suggestion
+      setTitle(suggestion.title)
+      setDescription(suggestion.description)
+      setSelectedType(suggestion.todo_type)
+      setCreatingType(false)
+      setNewType('')
+      setParentName(suggestion.parent_name ?? '')
+      setStartTime(suggestion.start_date ?? '')
+      setDurationDays(suggestion.expected_duration_days ? String(suggestion.expected_duration_days) : '')
+      setDurationHours(suggestion.expected_duration_hours ? String(suggestion.expected_duration_hours) : '')
+      setDependencyIds(suggestion.dependency_names.flatMap((name) => {
+        const match = todos.find((todo) => todo.title.toLocaleLowerCase() === name.toLocaleLowerCase())
+        return match ? [match.id] : []
+      }))
+      setAnalysisQuestions(result.clarification_questions)
+      setAnalysisPowered(result.ai_powered)
+      setAnalysisDone(true)
+    } catch (reason) {
+      showError(reason)
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
   async function addTodo(event: FormEvent) {
     event.preventDefault()
     if (!title.trim()) return
@@ -166,6 +206,11 @@ export default function App() {
     setDurationHours('')
     setDependencyQuery('')
     setDependencyIds([])
+    setAnalysisText('')
+    setAnalysisQuestions([])
+    setAnalysisAnswers({})
+    setAnalysisPowered(false)
+    setAnalysisDone(false)
     setAddModalOpen(true)
   }
 
@@ -388,6 +433,22 @@ export default function App() {
             </div>
             <form onSubmit={addTodo}>
               {error && <p className="error" role="alert">{error}</p>}
+              {editingId === null && <section className="task-detection">
+                <div className="task-detection-heading">
+                  <div><strong>Describe it naturally</strong><small> Detect the task details, then answer any follow-up questions.</small></div>
+                  {analysisDone && <span>{analysisPowered ? 'AI assisted' : 'Local detection'}</span>}
+                </div>
+                <textarea value={analysisText} onChange={(event) => setAnalysisText(event.target.value)} placeholder="Plan the product launch tomorrow for 3 hours, after Review copy…" rows={3} />
+                {analysisQuestions.length > 0 && <div className="clarification-questions">
+                  <strong>A few details would help</strong>
+                  {analysisQuestions.map((question) => <label key={question}>{question}
+                    <input value={analysisAnswers[question] ?? ''} onChange={(event) => setAnalysisAnswers((current) => ({ ...current, [question]: event.target.value }))} placeholder="Type your answer…" />
+                  </label>)}
+                </div>}
+                <button className="detect-task" type="button" onClick={analyzeTask} disabled={analyzing || (!analysisText.trim() && !title.trim())}>
+                  {analyzing ? 'Detecting…' : analysisQuestions.length ? 'Refine details' : 'Detect task details'}
+                </button>
+              </section>}
               <label>What do you want to accomplish?
                 <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add something meaningful…" maxLength={200} />
               </label>

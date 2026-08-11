@@ -1,0 +1,155 @@
+import json
+import os
+import re
+from datetime import date, timedelta
+from typing import Dict, List, Optional
+
+from langgraph.graph import END, START, StateGraph
+from typing_extensions import TypedDict
+
+
+class DetectionState(TypedDict, total=False):
+    text: str
+    answers: Dict[str, str]
+    type_names: List[str]
+    task_names: List[str]
+    suggestion: Dict[str, object]
+    clarification_questions: List[str]
+    ai_powered: bool
+
+
+def extract_task(state: DetectionState) -> DetectionState:
+    combined = state["text"]
+    if state.get("answers"):
+        combined += "\nClarifications:\n" + "\n".join(state["answers"].values())
+    ai_suggestion = _openai_extract(combined, state)
+    suggestion = ai_suggestion or _fallback_extract(combined, state)
+    return {"suggestion": suggestion, "ai_powered": ai_suggestion is not None}
+
+
+def find_clarifications(state: DetectionState) -> DetectionState:
+    suggestion = state["suggestion"]
+    questions = []
+    if not suggestion.get("start_date"):
+        questions.append("When should this task start? You can also say that it should remain pending.")
+    if not suggestion.get("expected_duration_days") and not suggestion.get("expected_duration_hours"):
+        questions.append("How long do you expect this task to take?")
+    if suggestion.get("todo_type") == "General" and len(state.get("type_names", [])) > 1:
+        questions.append("Which task type best describes this work?")
+    return {"clarification_questions": questions[:3]}
+
+
+def _openai_extract(text: str, state: DetectionState) -> Optional[Dict[str, object]]:
+    if not os.getenv("OPENAI_API_KEY"):
+        return None
+    try:
+        from openai import OpenAI
+
+        prompt = """Extract a task from the user's text. Return JSON only with these keys:
+title, description, todo_type, start_date, expected_duration_days,
+expected_duration_hours, parent_name, dependency_names. start_date must be YYYY-MM-DD
+or null. Durations must be non-negative numbers. parent_name may be null and
+dependency_names must be an array. Use only the supplied existing type/task names
+when selecting relationships. Do not invent details.
+
+Existing types: {types}
+Existing tasks: {tasks}
+Today: {today}
+User text:
+{text}""".format(
+            types=", ".join(state.get("type_names", [])),
+            tasks=", ".join(state.get("task_names", [])),
+            today=date.today().isoformat(),
+            text=text,
+        )
+        response = OpenAI().responses.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"), input=prompt
+        )
+        content = response.output_text.strip()
+        if content.startswith("```"):
+            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content)
+        return _normalize(json.loads(content), state)
+    except Exception:
+        return None
+
+
+def _fallback_extract(text: str, state: DetectionState) -> Dict[str, object]:
+    clean = " ".join(text.split())
+    first_sentence = re.split(r"[.!?]", clean, maxsplit=1)[0].strip()
+    title = first_sentence[:200] or "New task"
+    lowered = clean.lower()
+    start_date = None
+    date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2})\b", clean)
+    if date_match:
+        start_date = date_match.group(1)
+    elif "tomorrow" in lowered:
+        start_date = (date.today() + timedelta(days=1)).isoformat()
+    elif "today" in lowered:
+        start_date = date.today().isoformat()
+
+    days = _number_before(r"days?", lowered)
+    hours = _number_before(r"hours?|hrs?", lowered)
+    type_name = next(
+        (name for name in state.get("type_names", []) if name.lower() in lowered),
+        "General",
+    )
+    matching_tasks = [
+        name for name in state.get("task_names", []) if name.lower() in lowered
+    ]
+    parent_name = None
+    for name in matching_tasks:
+        if re.search(r"(?:under|child of|part of)\s+" + re.escape(name.lower()), lowered):
+            parent_name = name
+            break
+    dependencies = [
+        name
+        for name in matching_tasks
+        if re.search(r"(?:depends on|after|blocked by)\s+" + re.escape(name.lower()), lowered)
+    ]
+    return {
+        "title": title,
+        "description": clean,
+        "todo_type": type_name,
+        "start_date": start_date,
+        "expected_duration_days": days,
+        "expected_duration_hours": hours,
+        "parent_name": parent_name,
+        "dependency_names": dependencies,
+    }
+
+
+def _number_before(unit_pattern: str, text: str) -> int:
+    match = re.search(r"\b(\d+)\s*(?:" + unit_pattern + r")\b", text)
+    return int(match.group(1)) if match else 0
+
+
+def _normalize(value: Dict[str, object], state: DetectionState) -> Dict[str, object]:
+    types = state.get("type_names", [])
+    tasks = state.get("task_names", [])
+    todo_type = str(value.get("todo_type") or "General")
+    if todo_type not in types:
+        todo_type = "General"
+    parent = value.get("parent_name")
+    if parent not in tasks:
+        parent = None
+    raw_dependencies = value.get("dependency_names") or []
+    dependencies = [name for name in raw_dependencies if name in tasks]
+    return {
+        "title": str(value.get("title") or "New task")[:200],
+        "description": str(value.get("description") or "")[:5000],
+        "todo_type": todo_type,
+        "start_date": value.get("start_date"),
+        "expected_duration_days": max(0, int(value.get("expected_duration_days") or 0)),
+        "expected_duration_hours": max(0, int(value.get("expected_duration_hours") or 0)),
+        "parent_name": parent,
+        "dependency_names": dependencies,
+    }
+
+
+builder = StateGraph(DetectionState)
+builder.add_node("extract_task", extract_task)
+builder.add_node("find_clarifications", find_clarifications)
+builder.add_edge(START, "extract_task")
+builder.add_edge("extract_task", "find_clarifications")
+builder.add_edge("find_clarifications", END)
+task_detection_graph = builder.compile()

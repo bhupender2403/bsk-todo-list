@@ -126,6 +126,14 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .modal-heading h2 { margin: 0; font-family: 'Newsreader', serif; font-size: 32px; }
 .modal-heading > button { width: 31px; height: 31px; display: grid; place-content: center; padding: 0; border: 0; border-radius: 50%; background: #eceee9; color: #737a73; font-size: 21px; }
 .modal form { display: grid; gap: 19px; }
+.task-detection { display: grid; gap: 12px; padding: 16px; border: 1px solid #d8ded5; border-radius: 13px; background: #f2f5ef; }
+.task-detection-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #46564a; font-size: 13px; }
+.task-detection-heading small { color: #7e887f; font-weight: 400; }
+.task-detection-heading span { flex: 0 0 auto; padding: 4px 7px; border-radius: 99px; background: #dfe8de; color: #526657; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.clarification-questions { display: grid; gap: 10px; padding-top: 2px; }
+.clarification-questions > strong { color: #58645a; font-size: 11px; }
+.task-detection .detect-task { justify-self: start; padding: 10px 13px; border: 0; border-radius: 9px; background: #5b705e; color: white; font-weight: 600; }
+.task-detection .detect-task:disabled { opacity: .5; }
 .modal label { display: grid; gap: 8px; color: #747b75; font-size: 12px; font-weight: 600; }
 .modal label small { color: #a0a59f; font-size: 10px; font-weight: 400; }
 .modal input, .modal select, .modal textarea { width: 100%; padding: 12px 13px; border: 1px solid #d9ddd5; border-radius: 10px; outline: 0; background: white; color: #343935; font-weight: 400; }

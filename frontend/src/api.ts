@@ -34,6 +34,21 @@ export type TodoType = {
 
 export type TodoStatus = 'pending' | 'scheduled' | 'running' | 'completed'
 
+export type TaskAnalysis = {
+  suggestion: {
+    title: string
+    description: string
+    todo_type: string
+    start_date: string | null
+    expected_duration_days: number
+    expected_duration_hours: number
+    parent_name: string | null
+    dependency_names: string[]
+  }
+  clarification_questions: string[]
+  ai_powered: boolean
+}
+
 export function getTodoStatus(todo: Todo): TodoStatus {
   if (todo.end_time) return 'completed'
   if (todo.is_running) return 'running'
@@ -56,6 +71,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
   listTypes: () => request<TodoType[]>('/api/todo-types'),
+  analyzeTask: (text: string, answers: Record<string, string> = {}) =>
+    request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
   createType: (name: string) =>
     request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
   create: (input: TodoInput) =>

@@ -10,12 +10,15 @@ from sqlalchemy.orm import Session
 from .database import Base, WORKSPACE, engine, get_db
 from .models import Todo, TodoType
 from .schemas import (
+    TaskAnalysisRequest,
+    TaskAnalysisResponse,
     TodoCreate,
     TodoResponse,
     TodoTypeCreate,
     TodoTypeResponse,
     TodoUpdate,
 )
+from .task_detection import task_detection_graph
 
 
 @asynccontextmanager
@@ -152,6 +155,23 @@ def list_todos(db: Session = Depends(get_db)) -> List[Todo]:
     return list(db.scalars(select(Todo).order_by(Todo.created_at.desc(), Todo.id.desc())))
 
 
+@app.post("/api/task-analysis", response_model=TaskAnalysisResponse)
+def analyze_task(payload: TaskAnalysisRequest, db: Session = Depends(get_db)):
+    result = task_detection_graph.invoke(
+        {
+            "text": payload.text,
+            "answers": payload.answers,
+            "type_names": list(db.scalars(select(TodoType.name))),
+            "task_names": list(db.scalars(select(Todo.title))),
+        }
+    )
+    return {
+        "suggestion": result["suggestion"],
+        "clarification_questions": result["clarification_questions"],
+        "ai_powered": result["ai_powered"],
+    }
+
+
 @app.get("/api/todo-types", response_model=List[TodoTypeResponse])
 def list_todo_types(db: Session = Depends(get_db)) -> List[TodoType]:
     return list(db.scalars(select(TodoType).order_by(TodoType.name)))
@@ -207,7 +227,7 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
 @app.patch("/api/todos/{todo_id}", response_model=TodoResponse)
 def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)) -> Todo:
     todo = find_todo(todo_id, db)
-    changes = payload.dict(exclude_unset=True)
+    changes = payload.model_dump(exclude_unset=True)
     dependency_ids = changes.pop("dependency_ids", None)
     if "title" in changes:
         if changes["title"] is None:

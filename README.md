@@ -5,6 +5,8 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 ## Features
 
 - Create, edit, complete, and delete todos
+- Detect task details from natural-language text with a LangGraph workflow
+- Ask and answer clarification questions before creating a task
 - Add detailed descriptions and notes to tasks
 - Assign reusable types to todos and create new types while adding a task
 - Track visible task IDs, optional parent tasks, schedules, and expected duration
@@ -49,6 +51,13 @@ python -m app --workspace ./workspace --reload
 
 The API is available at `http://localhost:8000`; Swagger documentation is at
 `http://localhost:8000/docs`.
+
+Task detection works locally without credentials. To use model-assisted extraction,
+set `OPENAI_API_KEY`; optionally override the default model with `OPENAI_MODEL`:
+
+```bash
+OPENAI_API_KEY=your-key OPENAI_MODEL=gpt-4.1-mini ./start.sh
+```
 
 `--workspace` accepts either a relative or absolute folder. The backend creates
 the folder when necessary and stores its `todos.sqlite3` database inside it. This
@@ -101,6 +110,7 @@ npm run build
 | `GET` | `/api/workspace` | Show the active workspace |
 | `GET` | `/api/todo-types` | List reusable todo types |
 | `POST` | `/api/todo-types` | Create a todo type |
+| `POST` | `/api/task-analysis` | Detect task fields and clarification questions from text |
 | `POST` | `/api/todos` | Create a todo |
 | `PATCH` | `/api/todos/{id}` | Update a todo |
 | `DELETE` | `/api/todos/{id}` | Delete a todo |

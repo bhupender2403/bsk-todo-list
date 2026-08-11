@@ -162,3 +162,39 @@ def test_running_and_completed_lifecycle():
         ).json()
         assert completed["completed"] is True
         assert completed["is_running"] is False
+
+
+def test_task_analysis_detects_fields_and_requests_clarification(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/task-analysis",
+            json={"text": "Prepare release tomorrow for 2 hours"},
+        )
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["suggestion"]["title"] == "Prepare release tomorrow for 2 hours"
+    assert result["suggestion"]["expected_duration_hours"] == 2
+    assert result["suggestion"]["start_date"] is not None
+    assert result["ai_powered"] is False
+    assert result["clarification_questions"] == []
+
+
+def test_task_analysis_accepts_clarification_answers(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/task-analysis",
+            json={
+                "text": "Prepare release",
+                "answers": {
+                    "When should this task start?": "tomorrow",
+                    "How long?": "3 hours",
+                },
+            },
+        )
+
+    result = response.json()
+    assert result["suggestion"]["start_date"] is not None
+    assert result["suggestion"]["expected_duration_hours"] == 3

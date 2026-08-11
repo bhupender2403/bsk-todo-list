@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TodoCreate(BaseModel):
@@ -30,6 +30,8 @@ class TodoUpdate(BaseModel):
 
 
 class TodoResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     description: str
@@ -44,18 +46,34 @@ class TodoResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
-
-
 class TodoTypeCreate(BaseModel):
     name: str = Field(min_length=1, max_length=60)
 
 
 class TodoTypeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+class TaskAnalysisRequest(BaseModel):
+    text: str = Field(min_length=3, max_length=10000)
+    answers: Dict[str, str] = Field(default_factory=dict)
+
+
+class TaskSuggestion(BaseModel):
+    title: str
+    description: str
+    todo_type: str
+    start_date: Optional[str] = None
+    expected_duration_days: int = 0
+    expected_duration_hours: int = 0
+    parent_name: Optional[str] = None
+    dependency_names: List[str] = Field(default_factory=list)
+
+
+class TaskAnalysisResponse(BaseModel):
+    suggestion: TaskSuggestion
+    clarification_questions: List[str]
+    ai_powered: bool
