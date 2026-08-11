@@ -1,5 +1,5 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { api, getTodoStatus, type TaskAnalysis, type TaskAnalysisConfig, type Todo } from './api'
+import { api, getTodoStatus, type Sprint, type TaskAnalysis, type TaskAnalysisConfig, type Todo } from './api'
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
@@ -27,8 +27,9 @@ export default function App() {
   const [detectedTasks, setDetectedTasks] = useState<DetectedTask[]>([])
   const [activeTaskNumber, setActiveTaskNumber] = useState<number | null>(null)
   const [taskAnalysisConfig, setTaskAnalysisConfig] = useState<TaskAnalysisConfig | null>(null)
-  const [sprintEndDate, setSprintEndDate] = useState<string | null>(null)
-  const [sprintDraft, setSprintDraft] = useState('')
+  const [sprints, setSprints] = useState<Sprint[]>([])
+  const [sprintName, setSprintName] = useState('')
+  const [sprintEndDate, setSprintEndDate] = useState('')
   const [sprintModalOpen, setSprintModalOpen] = useState(false)
   const [sourceTaskNumber, setSourceTaskNumber] = useState<number | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
@@ -48,12 +49,12 @@ export default function App() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    Promise.all([api.list(), api.listTypes(), api.taskAnalysisConfig(), api.getSprint()])
-      .then(([items, todoTypes, analysisConfig, sprint]) => {
+    Promise.all([api.list(), api.listTypes(), api.taskAnalysisConfig(), api.listSprints()])
+      .then(([items, todoTypes, analysisConfig, sprintItems]) => {
         setTodos(items)
         setTypes(todoTypes.map((item) => item.name))
         setTaskAnalysisConfig(analysisConfig)
-        setSprintEndDate(sprint.end_date)
+        setSprints(sprintItems)
         setSelectedId(items[0]?.id ?? null)
       })
       .catch(showError)
@@ -225,17 +226,33 @@ export default function App() {
   async function saveSprint(event: FormEvent) {
     event.preventDefault()
     try {
-      const sprint = await api.updateSprint(sprintDraft || null)
-      setSprintEndDate(sprint.end_date)
+      const sprint = await api.createSprint(sprintName, sprintEndDate)
+      setSprints((current) => [...current, sprint].sort((a, b) => a.end_date.localeCompare(b.end_date)))
       setSprintModalOpen(false)
+      setSprintName('')
+      setSprintEndDate('')
     } catch (reason) {
       showError(reason)
     }
   }
 
   function openSprintModal() {
-    setSprintDraft(sprintEndDate ?? '')
+    setSprintName('')
+    setSprintEndDate('')
     setSprintModalOpen(true)
+  }
+
+  function tomorrowDate() {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    return localInputDate(tomorrow)
+  }
+
+  function localInputDate(value: Date) {
+    const year = value.getFullYear()
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   async function addTodo(event: FormEvent) {
@@ -432,6 +449,18 @@ export default function App() {
     <main>
       <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <aside className="sidebar">
+          <section className="sprint-sidebar-section">
+            <div className="sidebar-heading sprint-heading">
+              <div><p className="eyebrow">Planning</p><h2>Sprints</h2></div>
+              <button onClick={openSprintModal} aria-label="Create sprint">＋</button>
+            </div>
+            <div className="sprint-list">
+              {sprints.length === 0 ? <p>No sprints yet.</p> : sprints.map((sprint) => <div className="sprint-card" key={sprint.id}>
+                <strong>{sprint.name}</strong><small>Ends {formatDate(sprint.end_date)}</small>
+              </div>)}
+            </div>
+          </section>
+
           <div className="sidebar-heading">
             <div>
               <p className="eyebrow">My workspace</p>
@@ -475,11 +504,6 @@ export default function App() {
               <p className="subtitle">See how your work connects.</p>
             </div>
             <div className="header-actions">
-              <button className="sprint-deadline" onClick={openSprintModal} title="Edit current sprint end date">
-                <sup aria-hidden="true">✎</sup>
-                <small>Current sprint</small>
-                <strong>{sprintEndDate ? formatDate(sprintEndDate) : 'Set end date'}</strong>
-              </button>
               <button className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-expanded={sidebarOpen}>
                 <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
               </button>
@@ -676,16 +700,19 @@ export default function App() {
       }}>
         <section className="sprint-modal" role="dialog" aria-modal="true" aria-labelledby="sprint-modal-title">
           <div className="modal-heading">
-            <div><p className="eyebrow">Current sprint</p><h2 id="sprint-modal-title">Set sprint end date</h2></div>
+            <div><p className="eyebrow">Planning</p><h2 id="sprint-modal-title">Create a sprint</h2></div>
             <button onClick={() => setSprintModalOpen(false)} aria-label="Close sprint modal">×</button>
           </div>
           <form onSubmit={saveSprint}>
+            <label>Sprint name
+              <input autoFocus value={sprintName} onChange={(event) => setSprintName(event.target.value)} placeholder="e.g. August launch" maxLength={120} />
+            </label>
             <label>Sprint end date
-              <input autoFocus type="date" value={sprintDraft} onChange={(event) => setSprintDraft(event.target.value)} />
+              <input type="date" min={tomorrowDate()} value={sprintEndDate} onChange={(event) => setSprintEndDate(event.target.value)} />
             </label>
             <div className="modal-actions">
-              <button type="button" onClick={() => setSprintDraft('')}>Clear</button>
-              <button className="primary" type="submit">Save sprint</button>
+              <button type="button" onClick={() => setSprintModalOpen(false)}>Cancel</button>
+              <button className="primary" type="submit" disabled={!sprintName.trim() || !sprintEndDate}>Create sprint</button>
             </div>
           </form>
         </section>

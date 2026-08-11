@@ -62,8 +62,11 @@ export type TaskCommandResult = {
   source: string
 }
 
-export type SprintSettings = {
-  end_date: string | null
+export type Sprint = {
+  id: number
+  name: string
+  end_date: string
+  created_at: string
 }
 
 export function getTodoStatus(todo: Todo): TodoStatus {
@@ -88,9 +91,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
   listTypes: () => request<TodoType[]>('/api/todo-types'),
-  getSprint: () => request<SprintSettings>('/api/sprint'),
-  updateSprint: (endDate: string | null) =>
-    request<SprintSettings>('/api/sprint', { method: 'PUT', body: JSON.stringify({ end_date: endDate }) }),
+  listSprints: () => request<Sprint[]>('/api/sprints'),
+  createSprint: (name: string, endDate: string) =>
+    request<Sprint>('/api/sprints', { method: 'POST', body: JSON.stringify({ name, end_date: endDate }) }),
   analyzeTask: (text: string, answers: Record<string, string> = {}) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),

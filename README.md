@@ -12,6 +12,7 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Add detailed descriptions and notes to tasks
 - Assign reusable types to todos and create new types while adding a task
 - Track visible task IDs, optional parent tasks, schedules, and expected duration
+- Create multiple named sprints with future end dates
 - Link tasks through searchable dependencies
 - Explore parent and dependency relationships in an interactive DAG
 - Track pending, scheduled, running, and completed task lifecycle states
@@ -131,6 +132,8 @@ npm run build
 | `GET` | `/api/todos` | List todos |
 | `GET` | `/api/workspace` | Show the active workspace |
 | `GET` | `/api/todo-types` | List reusable todo types |
+| `GET` | `/api/sprints` | List named sprints |
+| `POST` | `/api/sprints` | Create a named sprint with a future end date |
 | `POST` | `/api/todo-types` | Create a todo type |
 | `POST` | `/api/task-analysis` | Detect task fields and clarification questions from text |
 | `POST` | `/api/task-commands` | Apply a supported task update command |

@@ -96,11 +96,15 @@ class TaskCommandResponse(BaseModel):
     source: str
 
 
-class SprintSettingsUpdate(BaseModel):
-    end_date: Optional[date] = None
+class SprintCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    end_date: date
 
 
-class SprintSettingsResponse(BaseModel):
+class SprintResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    end_date: Optional[date] = None
+    id: int
+    name: str
+    end_date: date
+    created_at: datetime

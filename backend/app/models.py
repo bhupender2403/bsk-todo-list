@@ -56,8 +56,11 @@ class TodoType(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
-class SprintSettings(Base):
-    __tablename__ = "sprint_settings"
+class Sprint(Base):
+    __tablename__ = "sprints"
+    __table_args__ = (UniqueConstraint("name", name="uq_sprints_name"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True, default=1)
-    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), index=True)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

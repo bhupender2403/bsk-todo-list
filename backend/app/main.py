@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import os
+from datetime import date
 from typing import Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException, Response, status
@@ -9,15 +10,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base, WORKSPACE, engine, get_db
-from .models import SprintSettings, Todo, TodoType
+from .models import Sprint, Todo, TodoType
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
     TaskAnalysisConfigResponse,
     TaskCommandRequest,
     TaskCommandResponse,
-    SprintSettingsResponse,
-    SprintSettingsUpdate,
+    SprintCreate,
+    SprintResponse,
     TodoCreate,
     TodoResponse,
     TodoTypeCreate,
@@ -39,7 +40,8 @@ async def lifespan(_: FastAPI):
 def migrate_sqlite_schema() -> None:
     if engine.dialect.name != "sqlite":
         return
-    columns = {column["name"] for column in inspect(engine).get_columns("todos")}
+    inspector = inspect(engine)
+    columns = {column["name"] for column in inspector.get_columns("todos")}
     additions = {
         "description": "TEXT NOT NULL DEFAULT ''",
         "todo_type": "VARCHAR(60) NOT NULL DEFAULT 'General'",
@@ -59,6 +61,15 @@ def migrate_sqlite_schema() -> None:
         connection.execute(
             text("UPDATE todos SET end_time = updated_at WHERE completed = 1 AND end_time IS NULL")
         )
+        if "sprint_settings" in inspector.get_table_names():
+            connection.execute(
+                text(
+                    "INSERT INTO sprints (name, end_date) "
+                    "SELECT 'Current sprint', end_date FROM sprint_settings "
+                    "WHERE end_date IS NOT NULL "
+                    "AND NOT EXISTS (SELECT 1 FROM sprints WHERE name = 'Current sprint')"
+                )
+            )
 
 
 def ensure_default_type() -> None:
@@ -157,22 +168,25 @@ def workspace() -> Dict[str, str]:
     return {"path": str(WORKSPACE)}
 
 
-@app.get("/api/sprint", response_model=SprintSettingsResponse)
-def get_sprint(db: Session = Depends(get_db)):
-    settings = db.get(SprintSettings, 1)
-    return {"end_date": settings.end_date if settings else None}
+@app.get("/api/sprints", response_model=List[SprintResponse])
+def list_sprints(db: Session = Depends(get_db)):
+    return list(db.scalars(select(Sprint).order_by(Sprint.end_date, Sprint.id)))
 
 
-@app.put("/api/sprint", response_model=SprintSettingsResponse)
-def update_sprint(payload: SprintSettingsUpdate, db: Session = Depends(get_db)):
-    settings = db.get(SprintSettings, 1)
-    if settings is None:
-        settings = SprintSettings(id=1)
-        db.add(settings)
-    settings.end_date = payload.end_date
+@app.post("/api/sprints", response_model=SprintResponse, status_code=status.HTTP_201_CREATED)
+def create_sprint(payload: SprintCreate, db: Session = Depends(get_db)):
+    name = " ".join(payload.name.split())
+    if not name:
+        raise HTTPException(status_code=422, detail="Sprint name cannot be blank")
+    if payload.end_date <= date.today():
+        raise HTTPException(status_code=422, detail="Sprint end date must be after today")
+    if db.scalar(select(Sprint).where(Sprint.name == name)) is not None:
+        raise HTTPException(status_code=409, detail="A sprint with this name already exists")
+    sprint = Sprint(name=name, end_date=payload.end_date)
+    db.add(sprint)
     db.commit()
-    db.refresh(settings)
-    return settings
+    db.refresh(sprint)
+    return sprint
 
 
 @app.get("/api/todos", response_model=List[TodoResponse])

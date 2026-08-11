@@ -63,16 +63,19 @@ def test_rejects_blank_title():
     assert response.status_code == 422
 
 
-def test_current_sprint_end_date_can_be_saved_and_cleared():
+def test_named_sprints_require_a_future_end_date():
     with TestClient(app) as client:
-        assert client.get("/api/sprint").json() == {"end_date": None}
-        assert client.put("/api/sprint", json={"end_date": "2026-08-28"}).json() == {
-            "end_date": "2026-08-28"
-        }
-        assert client.get("/api/sprint").json() == {"end_date": "2026-08-28"}
-        assert client.put("/api/sprint", json={"end_date": None}).json() == {
-            "end_date": None
-        }
+        assert client.get("/api/sprints").json() == []
+        end_date = (date.today() + timedelta(days=14)).isoformat()
+        created = client.post("/api/sprints", json={"name": "Launch", "end_date": end_date})
+        assert created.status_code == 201
+        assert created.json()["name"] == "Launch"
+        assert created.json()["end_date"] == end_date
+        assert len(client.get("/api/sprints").json()) == 1
+        rejected = client.post(
+            "/api/sprints", json={"name": "Past", "end_date": date.today().isoformat()}
+        )
+        assert rejected.status_code == 422
 
 
 def test_new_type_is_reusable_and_can_be_created_with_todo():
