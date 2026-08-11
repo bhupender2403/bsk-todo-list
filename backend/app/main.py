@@ -46,6 +46,7 @@ def migrate_sqlite_schema() -> None:
         "description": "TEXT NOT NULL DEFAULT ''",
         "todo_type": "VARCHAR(60) NOT NULL DEFAULT 'General'",
         "parent_id": "INTEGER",
+        "sprint_id": "INTEGER",
         "start_time": "DATETIME",
         "end_time": "DATETIME",
         "expected_duration_minutes": "INTEGER",
@@ -285,6 +286,8 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
     find_or_create_type(type_name, db)
     if payload.parent_id is not None:
         find_todo(payload.parent_id, db)
+    if payload.sprint_id is not None and db.get(Sprint, payload.sprint_id) is None:
+        raise HTTPException(status_code=422, detail="Sprint does not exist")
     validate_schedule(payload.start_time, payload.end_time)
     dependencies = find_todos(payload.dependency_ids, db)
     todo = Todo(
@@ -292,6 +295,7 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
         description=payload.description.strip(),
         todo_type=type_name,
         parent_id=payload.parent_id,
+        sprint_id=payload.sprint_id,
         start_time=payload.start_time,
         end_time=payload.end_time,
         expected_duration_minutes=payload.expected_duration_minutes,
@@ -329,6 +333,9 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=422, detail="A task cannot be its own parent")
     if changes.get("parent_id") is not None and "parent_id" in changes:
         find_todo(changes["parent_id"], db)
+    if changes.get("sprint_id") is not None and "sprint_id" in changes:
+        if db.get(Sprint, changes["sprint_id"]) is None:
+            raise HTTPException(status_code=422, detail="Sprint does not exist")
     validate_schedule(
         changes.get("start_time", todo.start_time), changes.get("end_time", todo.end_time)
     )

@@ -78,6 +78,25 @@ def test_named_sprints_require_a_future_end_date():
         assert rejected.status_code == 422
 
 
+def test_task_can_be_assigned_to_sprint():
+    with TestClient(app) as client:
+        sprint = client.post(
+            "/api/sprints",
+            json={
+                "name": "Delivery",
+                "end_date": (date.today() + timedelta(days=7)).isoformat(),
+            },
+        ).json()
+        todo = client.post(
+            "/api/todos", json={"title": "Ship", "sprint_id": sprint["id"]}
+        )
+        assert todo.status_code == 201
+        assert todo.json()["sprint_id"] == sprint["id"]
+        assert client.patch(
+            f"/api/todos/{todo.json()['id']}", json={"sprint_id": None}
+        ).json()["sprint_id"] is None
+
+
 def test_new_type_is_reusable_and_can_be_created_with_todo():
     with TestClient(app) as client:
         assert [item["name"] for item in client.get("/api/todo-types").json()] == [

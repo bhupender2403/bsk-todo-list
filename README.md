@@ -13,6 +13,7 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Assign reusable types to todos and create new types while adding a task
 - Track visible task IDs, optional parent tasks, schedules, and expected duration
 - Create multiple named sprints with future end dates
+- Assign tasks to sprints and select a sprint-scoped timeline from the sidebar
 - Link tasks through searchable dependencies
 - Explore parent and dependency relationships in an interactive DAG
 - Track pending, scheduled, running, and completed task lifecycle states

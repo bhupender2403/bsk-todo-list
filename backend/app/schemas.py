@@ -9,6 +9,7 @@ class TodoCreate(BaseModel):
     description: str = Field(default="", max_length=5000)
     todo_type: str = Field(default="General", min_length=1, max_length=60)
     parent_id: Optional[int] = None
+    sprint_id: Optional[int] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
@@ -22,6 +23,7 @@ class TodoUpdate(BaseModel):
     todo_type: Optional[str] = Field(default=None, min_length=1, max_length=60)
     completed: Optional[bool] = None
     parent_id: Optional[int] = None
+    sprint_id: Optional[int] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
@@ -38,6 +40,7 @@ class TodoResponse(BaseModel):
     todo_type: str
     completed: bool
     parent_id: Optional[int]
+    sprint_id: Optional[int]
     start_time: Optional[datetime]
     end_time: Optional[datetime]
     expected_duration_minutes: Optional[int]

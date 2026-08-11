@@ -26,6 +26,7 @@ class Todo(Base):
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_id: Mapped[Optional[int]] = mapped_column(ForeignKey("todos.id"), nullable=True)
+    sprint_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sprints.id"), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     expected_duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -36,6 +37,7 @@ class Todo(Base):
     parent: Mapped[Optional["Todo"]] = relationship(
         remote_side="Todo.id", foreign_keys=[parent_id]
     )
+    sprint: Mapped[Optional["Sprint"]] = relationship(foreign_keys=[sprint_id])
     dependencies: Mapped[List["Todo"]] = relationship(
         secondary=todo_dependencies,
         primaryjoin=id == todo_dependencies.c.todo_id,

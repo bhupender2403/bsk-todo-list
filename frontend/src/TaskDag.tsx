@@ -6,6 +6,8 @@ type Props = {
   selectedId: number | null
   onSelect: (id: number) => void
   onOpen: (id: number) => void
+  rangeStart?: string
+  rangeEnd?: string
 }
 
 type Edge = { from: number; to: number }
@@ -18,9 +20,13 @@ const DAY_BAR_GAP = 12
 const MIN_NODE_WIDTH = 52
 const ROW_GAP = 16
 
-export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) {
-  const graph = useMemo(() => layoutGraph(todos), [todos])
-  const timeline = useMemo(() => buildTimeline(todos), [todos])
+export default function TaskDag({ todos, selectedId, onSelect, onOpen, rangeStart, rangeEnd }: Props) {
+  const graph = useMemo(() => layoutGraph(todos, rangeStart, rangeEnd), [todos, rangeStart, rangeEnd])
+  const timeline = useMemo(() => {
+    if (!rangeStart || !rangeEnd) return buildTimeline(todos)
+    const positions = new Map(datesBetween(rangeStart, rangeEnd).map((date, index) => [date, 80 + index * DATE_STEP]))
+    return buildTimeline(todos, positions)
+  }, [todos, rangeStart, rangeEnd])
   const activeEdges = useMemo(
     () => selectedId === null ? [] : graph.edges.filter((edge) => edge.from === selectedId || edge.to === selectedId),
     [graph.edges, selectedId],
@@ -145,6 +151,12 @@ function buildTimeline(todos: Todo[], positions?: Map<string, number>) {
     .map((date, index) => ({ date, count: counts.get(date) ?? 0, today: date === today, x: positions?.get(date) ?? 50 + index * DATE_STEP }))
 }
 
+function datesBetween(start: string, end: string) {
+  const dates: string[] = []
+  for (let value = start; value <= end; value = shiftDate(value, 1)) dates.push(value)
+  return dates
+}
+
 function buildDateRange(taskDates: string[]) {
   const today = localDateKey(new Date())
   const defaultStart = shiftDate(today, -7)
@@ -182,7 +194,7 @@ function nodeLabel(todo: Todo, width: number) {
   return truncate(`#${todo.id} · ${todo.title} · ${todo.todo_type}`, Math.max(8, Math.floor(width / 7.2) - 2))
 }
 
-function layoutGraph(todos: Todo[]) {
+function layoutGraph(todos: Todo[], rangeStart?: string, rangeEnd?: string) {
   const byTodoId = new Map(todos.map((todo) => [todo.id, todo]))
   const children = new Map<number, Todo[]>()
   for (const todo of todos) {
@@ -192,15 +204,18 @@ function layoutGraph(todos: Todo[]) {
   }
 
   const today = localDateKey(new Date())
+  const bounded = Boolean(rangeStart && rangeEnd)
+  const defaultDate = rangeStart ?? today
   const rangeDates = todos.flatMap((todo) => {
-    const start = todo.start_time?.slice(0, 10) ?? today
+    const start = todo.start_time?.slice(0, 10) ?? defaultDate
     const values = [start]
     if (todo.end_time) values.push(todo.end_time.slice(0, 10))
     else if (todo.expected_duration_minutes) values.push(shiftDate(start, Math.max(0, Math.ceil(todo.expected_duration_minutes / 1440) - 1)))
     return values
   })
-  const dates = buildDateRange(rangeDates)
-  const dateX = new Map(dates.map((date, index) => [date, 50 + index * DATE_STEP]))
+  const dates = bounded ? datesBetween(rangeStart!, rangeEnd!) : buildDateRange(rangeDates)
+  const timelineStartX = bounded ? 80 : 50
+  const dateX = new Map(dates.map((date, index) => [date, timelineStartX + index * DATE_STEP]))
   const related = new Map(todos.map((todo) => [todo.id, new Set<number>()]))
   for (const todo of todos) {
     for (const id of [todo.parent_id, ...todo.dependency_ids]) {
@@ -215,7 +230,7 @@ function layoutGraph(todos: Todo[]) {
     if (assignedDate.has(todo.id)) continue
     const queue = [todo.id]
     const visited = new Set(queue)
-    let inherited = today
+    let inherited = defaultDate
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       const found = assignedDate.get(queue[cursor])
       if (found) { inherited = found; break }
@@ -233,9 +248,22 @@ function layoutGraph(todos: Todo[]) {
   function place(todo: Todo): NodePosition[] {
     if (placed.has(todo.id)) return []
     placed.add(todo.id)
-    const assignedStart = assignedDate.get(todo.id) ?? today
+    const assignedStart = assignedDate.get(todo.id) ?? defaultDate
     const spanDays = taskSpanDays(todo, assignedStart)
-    const node = { todo, x: dateX.get(assignedStart) ?? 50, y: 28 + row * (NODE_HEIGHT + ROW_GAP), width: Math.max(MIN_NODE_WIDTH, spanDays * DATE_STEP - DAY_BAR_GAP) }
+    let x = dateX.get(assignedStart) ?? 50
+    let width = Math.max(MIN_NODE_WIDTH, spanDays * DATE_STEP - DAY_BAR_GAP)
+    if (bounded) {
+      const taskEnd = taskEndDate(todo, assignedStart)
+      const rightOverflow = (dateX.get(rangeEnd!) ?? timelineStartX) + DATE_STEP + 52
+      x = assignedStart < rangeStart! ? 18 : assignedStart > rangeEnd! ? rightOverflow - MIN_NODE_WIDTH : dateX.get(assignedStart) ?? timelineStartX
+      const endX = taskEnd > rangeEnd!
+        ? rightOverflow
+        : taskEnd < rangeStart!
+          ? timelineStartX - 12
+          : (dateX.get(taskEnd) ?? timelineStartX) + DATE_STEP - DAY_BAR_GAP
+      width = Math.max(MIN_NODE_WIDTH, endX - x)
+    }
+    const node = { todo, x, y: 28 + row * (NODE_HEIGHT + ROW_GAP), width }
     row += 1
     nodes.push(node)
     const subtree = [node]
@@ -271,10 +299,18 @@ function layoutGraph(todos: Todo[]) {
     }
   }
 
-  const width = Math.max(760, ...nodes.map((node) => node.x + node.width + 120), (dates.length - 1) * DATE_STEP + 160)
+  const width = bounded
+    ? Math.max(760, timelineStartX + (dates.length - 1) * DATE_STEP + DATE_STEP + 70)
+    : Math.max(760, ...nodes.map((node) => node.x + node.width + 120), (dates.length - 1) * DATE_STEP + 160)
   const height = Math.max(360, ...nodes.map((node) => node.y + NODE_HEIGHT + 28), ...groups.map((group) => group.y + group.height + 28))
   const timelinePositions = new Map(dates.map((date) => [date, dateX.get(date) ?? 50]))
   return { nodes, groups, edges, width, height, timeline: buildTimeline(todos, timelinePositions), byId: new Map(nodes.map((node) => [node.todo.id, node])) }
+}
+
+function taskEndDate(todo: Todo, startDate: string) {
+  if (todo.end_time) return todo.end_time.slice(0, 10)
+  if (todo.expected_duration_minutes) return shiftDate(startDate, Math.max(0, Math.ceil(todo.expected_duration_minutes / 1440) - 1))
+  return startDate
 }
 
 function taskSpanDays(todo: Todo, startDate: string) {
