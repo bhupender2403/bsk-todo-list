@@ -90,5 +90,7 @@ class TaskCommandRequest(BaseModel):
 
 
 class TaskCommandResponse(BaseModel):
-    message: str
-    todo: TodoResponse
+    handled: bool
+    message: Optional[str] = None
+    todo: Optional[TodoResponse] = None
+    source: str

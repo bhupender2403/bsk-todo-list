@@ -23,7 +23,7 @@ from .schemas import (
     TodoUpdate,
 )
 from .task_detection import task_detection_graph
-from .task_commands import parse_task_command
+from .task_commands import resolve_task_command
 
 
 @asynccontextmanager
@@ -189,9 +189,9 @@ def task_analysis_config():
 
 @app.post("/api/task-commands", response_model=TaskCommandResponse)
 def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db)):
-    command = parse_task_command(payload.text)
+    command, source = resolve_task_command(payload.text)
     if command is None:
-        raise HTTPException(status_code=422, detail="I could not understand that task command")
+        return {"handled": False, "source": source}
 
     task_id = int(command["task_id"])
     todo = find_todo(task_id, db)
@@ -216,7 +216,7 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
     else:
         todo = update_todo(task_id, TodoUpdate(start_time=command["start_time"]), db)
         message = f"Set the start time for #{task_id} to {command['when']}."
-    return {"message": message, "todo": todo}
+    return {"handled": True, "message": message, "todo": todo, "source": source}
 
 
 @app.get("/api/todo-types", response_model=List[TodoTypeResponse])

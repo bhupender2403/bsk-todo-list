@@ -104,6 +104,10 @@ set #7 start time to three days from now
 ```
 
 Type `#` in Chat to find a task by its ID and insert its reference.
+When OpenAI is configured, commands are selected through structured function
+tool calls. Without a key—or if the model call fails—the documented command
+forms continue to work through the local fallback parser. Chat labels which
+route handled each mutation.
 
 ## Tests
 

@@ -56,8 +56,10 @@ export type TaskAnalysisConfig = {
 }
 
 export type TaskCommandResult = {
-  message: string
-  todo: Todo
+  handled: boolean
+  message: string | null
+  todo: Todo | null
+  source: string
 }
 
 export function getTodoStatus(todo: Todo): TodoStatus {

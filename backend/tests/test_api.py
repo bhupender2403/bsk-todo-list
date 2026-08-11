@@ -242,6 +242,8 @@ def test_chat_task_commands_update_tasks():
             "/api/task-commands", json={"text": f"set #{task3} as parent of #{task4}"}
         )
         assert parent.status_code == 200
+        assert parent.json()["handled"] is True
+        assert parent.json()["source"] == "local"
         assert parent.json()["todo"]["parent_id"] == task3
 
         dependency = client.post(
@@ -268,3 +270,16 @@ def test_chat_task_commands_update_tasks():
             date.today() + timedelta(days=3)
         ).isoformat()
         assert set(by_number) == {task["id"] for task in client.get("/api/todos").json()}
+
+
+def test_task_command_declines_non_mutation(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        response = client.post("/api/task-commands", json={"text": "Plan a holiday"})
+
+    assert response.json() == {
+        "handled": False,
+        "message": None,
+        "todo": None,
+        "source": "local",
+    }

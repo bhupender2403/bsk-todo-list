@@ -3,7 +3,7 @@ import { api, getTodoStatus, type TaskAnalysis, type TaskAnalysisConfig, type To
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
-type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number }
+type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string }
 type DetectedTask = { number: number; sourceText: string; answers: Record<string, string>; analysis: TaskAnalysis }
 
 export default function App() {
@@ -131,23 +131,28 @@ export default function App() {
       ])
       return
     }
-    if (/^(?:(?:set|update)\s+)?#\d+\s+depend(?:s)?\s+on\s+#\d+/i.test(text) || /^(?:set|update)\s+#\d+/i.test(text)) {
+    if (activeTaskNumber === null) {
       const messageId = Date.now()
       setAnalyzing(true)
       setError('')
-      setChatInput('')
-      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }])
       try {
         const result = await api.runTaskCommand(text)
-        setTodos((current) => current.map((todo) => todo.id === result.todo.id ? result.todo : todo))
-        setChatMessages((current) => [...current, { id: messageId + 1, role: 'assistant', text: result.message }])
+        if (result.handled && result.todo && result.message) {
+          setChatInput('')
+          setChatMessages((current) => [
+            ...current,
+            { id: messageId, role: 'user', text },
+            { id: messageId + 1, role: 'assistant', text: result.message!, source: result.source },
+          ])
+          setTodos((current) => current.map((todo) => todo.id === result.todo!.id ? result.todo! : todo))
+          return
+        }
       } catch (reason) {
-        const message = reason instanceof Error ? reason.message : 'The task could not be updated'
-        setChatMessages((current) => [...current, { id: messageId + 1, role: 'assistant', text: message }])
+        showError(reason)
+        return
       } finally {
         setAnalyzing(false)
       }
-      return
     }
     setAnalyzing(true)
     setError('')
@@ -598,6 +603,9 @@ export default function App() {
                 <p>{message.text}</p>
                 {message.role === 'assistant' && detectedTask && <small className="analysis-source">
                   {detectedTask.analysis.analysis_source === 'local' ? 'Local detector' : `OpenAI · ${detectedTask.analysis.analysis_source}`}
+                </small>}
+                {message.role === 'assistant' && message.source && <small className="analysis-source">
+                  Tool call · {message.source === 'local' ? 'Local fallback' : `OpenAI · ${message.source}`}
                 </small>}
               </div>
               {task && <button className="inline-task-marker" onClick={() => openDetectedTask(task)} title={`Review task ${task.number}`}>
