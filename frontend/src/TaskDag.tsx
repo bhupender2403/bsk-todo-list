@@ -62,7 +62,10 @@ export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) 
               <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
               <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
               {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}
-              <title>Task #{todo.id}: {todo.title}</title>
+              <title>{[
+                `Task #${todo.id}: ${todo.title}`,
+                ...(taskIssues.get(todo.id)?.map((issue) => `Warning: ${issue}`) ?? []),
+              ].join('\n')}</title>
             </g>
           ))}
 
