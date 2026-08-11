@@ -202,6 +202,26 @@ def test_task_analysis_accepts_clarification_answers(monkeypatch):
     assert result["suggestion"]["expected_duration_hours"] == 3
 
 
+def test_answered_optional_clarifications_make_task_ready(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        client.post("/api/todo-types", json={"name": "Work"})
+        response = client.post(
+            "/api/task-analysis",
+            json={
+                "text": "Write ideas",
+                "answers": {
+                    "When should this task start? You can also say that it should remain pending.": "Keep it pending",
+                    "How long do you expect this task to take?": "Not sure yet",
+                    "Which task type best describes this work?": "General",
+                },
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["clarification_questions"] == []
+
+
 def test_task_analysis_accepts_short_text(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with TestClient(app) as client:

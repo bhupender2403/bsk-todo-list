@@ -38,13 +38,17 @@ def extract_task(state: DetectionState) -> DetectionState:
 
 def find_clarifications(state: DetectionState) -> DetectionState:
     suggestion = state["suggestion"]
+    answers = state.get("answers", {})
     questions = []
-    if not suggestion.get("start_date"):
-        questions.append("When should this task start? You can also say that it should remain pending.")
-    if not suggestion.get("expected_duration_days") and not suggestion.get("expected_duration_hours"):
-        questions.append("How long do you expect this task to take?")
-    if suggestion.get("todo_type") == "General" and len(state.get("type_names", [])) > 1:
-        questions.append("Which task type best describes this work?")
+    start_question = "When should this task start? You can also say that it should remain pending."
+    duration_question = "How long do you expect this task to take?"
+    type_question = "Which task type best describes this work?"
+    if not suggestion.get("start_date") and start_question not in answers:
+        questions.append(start_question)
+    if not suggestion.get("expected_duration_days") and not suggestion.get("expected_duration_hours") and duration_question not in answers:
+        questions.append(duration_question)
+    if suggestion.get("todo_type") == "General" and len(state.get("type_names", [])) > 1 and type_question not in answers:
+        questions.append(type_question)
     return {"clarification_questions": questions[:3]}
 
 
