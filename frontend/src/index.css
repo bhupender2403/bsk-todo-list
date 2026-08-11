@@ -39,11 +39,14 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46px); line-height: .95; letter-spacing: -.03em; }
 .subtitle { margin: 7px 0 0; color: #7b817c; font-size: 13px; }
 .header-actions { display: flex; align-items: center; gap: 9px; }
-.sidebar-toggle, .header-add-task { display: flex; align-items: center; gap: 7px; padding: 10px 13px; border: 1px solid #d9ddd5; border-radius: 10px; background: white; color: #59625b; font-size: 12px; font-weight: 600; }
+.sidebar-toggle, .header-add-task, .chat-toggle { display: flex; align-items: center; gap: 7px; padding: 10px 13px; border: 1px solid #d9ddd5; border-radius: 10px; background: white; color: #59625b; font-size: 12px; font-weight: 600; }
 .sidebar-toggle:hover { background: #f1f3ee; }
 .header-add-task { border-color: #465e4b; background: #465e4b; color: white; box-shadow: 0 5px 14px rgba(70,94,75,.14); }
 .header-add-task:hover { background: #3c5341; }
 .header-add-task span { font-size: 17px; line-height: 12px; }
+.chat-toggle { position: relative; }
+.chat-toggle.has-detected { border-color: #d59b53; background: #fff8e9; color: #79572f; box-shadow: 0 0 0 3px rgba(213,155,83,.12); }
+.chat-toggle b { position: absolute; top: -8px; right: -7px; min-width: 19px; height: 19px; display: grid; place-content: center; padding: 0 5px; border: 2px solid #fbfbf7; border-radius: 99px; background: #c17c35; color: white; font-size: 9px; }
 .status-counters { display: flex; align-items: center; gap: 5px; }
 .status-count { min-width: 58px; display: grid; gap: 1px; padding: 7px 8px; border: 1px solid #e0e3dc; border-radius: 10px; background: #f4f5f1; text-align: center; }
 .status-count strong { font-family: 'Newsreader', serif; color: #4c554e; font-size: 19px; line-height: 18px; }
@@ -126,14 +129,6 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .modal-heading h2 { margin: 0; font-family: 'Newsreader', serif; font-size: 32px; }
 .modal-heading > button { width: 31px; height: 31px; display: grid; place-content: center; padding: 0; border: 0; border-radius: 50%; background: #eceee9; color: #737a73; font-size: 21px; }
 .modal form { display: grid; gap: 19px; }
-.task-detection { display: grid; gap: 12px; padding: 16px; border: 1px solid #d8ded5; border-radius: 13px; background: #f2f5ef; }
-.task-detection-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #46564a; font-size: 13px; }
-.task-detection-heading small { color: #7e887f; font-weight: 400; }
-.task-detection-heading span { flex: 0 0 auto; padding: 4px 7px; border-radius: 99px; background: #dfe8de; color: #526657; font-size: 9px; font-weight: 700; text-transform: uppercase; }
-.clarification-questions { display: grid; gap: 10px; padding-top: 2px; }
-.clarification-questions > strong { color: #58645a; font-size: 11px; }
-.task-detection .detect-task { justify-self: start; padding: 10px 13px; border: 0; border-radius: 9px; background: #5b705e; color: white; font-weight: 600; }
-.task-detection .detect-task:disabled { opacity: .5; }
 .modal label { display: grid; gap: 8px; color: #747b75; font-size: 12px; font-weight: 600; }
 .modal label small { color: #a0a59f; font-size: 10px; font-weight: 400; }
 .modal input, .modal select, .modal textarea { width: 100%; padding: 12px 13px; border: 1px solid #d9ddd5; border-radius: 10px; outline: 0; background: white; color: #343935; font-weight: 400; }
@@ -160,8 +155,33 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .modal-actions button { padding: 10px 15px; border: 1px solid #daddd6; border-radius: 9px; background: white; color: #59605a; }
 .modal-actions .primary { border-color: #465e4b; background: #465e4b; color: white; }
 .modal-actions .primary:disabled { opacity: .45; cursor: default; }
+.chat-drawer { position: fixed; z-index: 9; top: 18px; right: 18px; bottom: 18px; width: min(390px, calc(100vw - 24px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: hidden; border: 1px solid #d7dcd4; border-radius: 20px; background: #fbfbf7; box-shadow: 0 26px 80px rgba(31,39,33,.24); animation: chat-in .2s ease-out; }
+.chat-heading { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 20px 14px; border-bottom: 1px solid #e3e5df; }
+.chat-heading h2 { margin: 0; font-family: 'Newsreader', serif; font-size: 29px; }
+.chat-heading > button { width: 30px; height: 30px; display: grid; place-content: center; border: 0; border-radius: 50%; background: #eceee9; color: #707870; font-size: 20px; }
+.detected-task-strip { display: flex; gap: 9px; overflow-x: auto; padding: 12px 18px; border-bottom: 1px solid #e5e7e1; background: #f6f3e9; }
+.task-marker, .inline-task-marker { position: relative; flex: 0 0 auto; width: 35px; height: 35px; display: grid; place-content: center; border: 1px solid #cf9148; border-radius: 10px; background: #fff4df; color: #8b5b27; box-shadow: 0 0 0 3px rgba(207,145,72,.12); }
+.task-marker span, .inline-task-marker span { font-size: 18px; line-height: 1; }
+.task-marker b, .inline-task-marker b { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; display: grid; place-content: center; padding: 0 4px; border: 2px solid #fbfbf7; border-radius: 99px; background: #bd7732; color: white; font-size: 9px; }
+.chat-messages { min-height: 0; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding: 20px; }
+.chat-empty { margin: auto; max-width: 245px; color: #858d86; text-align: center; font-size: 13px; line-height: 1.55; }
+.chat-empty span { color: #8d9e8f; font-size: 28px; }
+.chat-message { max-width: 86%; display: flex; align-items: flex-end; gap: 9px; }
+.chat-message p { margin: 0; padding: 11px 13px; border-radius: 14px 14px 14px 4px; background: #ecefe9; color: #4e5750; font-size: 12px; line-height: 1.5; }
+.chat-message.user { align-self: flex-end; flex-direction: row-reverse; }
+.chat-message.user p { border-radius: 14px 14px 4px 14px; background: #526b57; color: white; }
+.inline-task-marker { width: 29px; height: 29px; border-radius: 8px; }
+.inline-task-marker span { font-size: 15px; }
+.chat-composer { padding: 14px 16px 16px; border-top: 1px solid #e2e5de; background: #f7f8f4; }
+.chat-composer > small { display: block; margin-bottom: 7px; color: #8b6b47; font-size: 10px; }
+.chat-composer > div { display: flex; align-items: flex-end; gap: 8px; }
+.chat-composer textarea { min-width: 0; flex: 1; resize: none; padding: 11px 12px; border: 1px solid #d7dcd4; border-radius: 11px; outline: 0; background: white; color: #343a35; font: inherit; font-size: 12px; line-height: 1.4; }
+.chat-composer textarea:focus { border-color: #819585; box-shadow: 0 0 0 3px rgba(89,117,94,.09); }
+.chat-composer button { width: 38px; height: 38px; display: grid; place-content: center; border: 0; border-radius: 10px; background: #465e4b; color: white; font-size: 18px; }
+.chat-composer button:disabled { opacity: .45; }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@keyframes chat-in { from { opacity: 0; transform: translateX(12px); } }
 
 @media (max-width: 760px) {
   main { padding: 0; place-items: stretch; }
@@ -174,11 +194,12 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
   .workspace { padding: 38px 22px; }
   header { align-items: flex-start; gap: 15px; }
   .header-actions { flex-wrap: wrap; justify-content: flex-end; }
-  .sidebar-toggle, .header-add-task { padding: 9px 10px; }
+  .sidebar-toggle, .header-add-task, .chat-toggle { padding: 9px 10px; }
   .task-detail { padding: 25px 20px; }
   .detail-fields { grid-template-columns: 1fr 1fr; }
   .task-floating-modal { left: 10px !important; max-height: calc(100vh - 20px); }
   .task-floating-modal .task-detail { padding: 24px 20px; }
   .modal { padding: 24px 20px; }
+  .chat-drawer { top: 8px; right: 8px; bottom: 8px; width: calc(100vw - 16px); }
   .form-row { grid-template-columns: 1fr; }
 }

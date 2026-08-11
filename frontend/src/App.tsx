@@ -1,8 +1,10 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { api, getTodoStatus, type Todo } from './api'
+import { api, getTodoStatus, type TaskAnalysis, type Todo } from './api'
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
+type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number }
+type DetectedTask = { number: number; sourceText: string; answers: Record<string, string>; analysis: TaskAnalysis }
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>([])
@@ -19,12 +21,13 @@ export default function App() {
   const [durationHours, setDurationHours] = useState('')
   const [dependencyQuery, setDependencyQuery] = useState('')
   const [dependencyIds, setDependencyIds] = useState<number[]>([])
-  const [analysisText, setAnalysisText] = useState('')
-  const [analysisQuestions, setAnalysisQuestions] = useState<string[]>([])
-  const [analysisAnswers, setAnalysisAnswers] = useState<Record<string, string>>({})
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [detectedTasks, setDetectedTasks] = useState<DetectedTask[]>([])
+  const [activeTaskNumber, setActiveTaskNumber] = useState<number | null>(null)
+  const [sourceTaskNumber, setSourceTaskNumber] = useState<number | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
-  const [analysisPowered, setAnalysisPowered] = useState(false)
-  const [analysisDone, setAnalysisDone] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [query, setQuery] = useState('')
@@ -100,38 +103,59 @@ export default function App() {
     setError(reason instanceof Error ? reason.message : 'Something went wrong')
   }
 
-  async function analyzeTask() {
-    const text = analysisText.trim() || [title, description].filter(Boolean).join('. ')
-    if (!text) {
-      setError('Describe the task before detecting its details')
-      return
-    }
+  async function sendChatMessage(event: FormEvent) {
+    event.preventDefault()
+    const text = chatInput.trim()
+    if (!text) return
     setAnalyzing(true)
     setError('')
+    setChatInput('')
     try {
-      const result = await api.analyzeTask(text, analysisAnswers)
-      const suggestion = result.suggestion
-      setTitle(suggestion.title)
-      setDescription(suggestion.description)
-      setSelectedType(suggestion.todo_type)
-      setCreatingType(false)
-      setNewType('')
-      setParentName(suggestion.parent_name ?? '')
-      setStartTime(suggestion.start_date ?? '')
-      setDurationDays(suggestion.expected_duration_days ? String(suggestion.expected_duration_days) : '')
-      setDurationHours(suggestion.expected_duration_hours ? String(suggestion.expected_duration_hours) : '')
-      setDependencyIds(suggestion.dependency_names.flatMap((name) => {
-        const match = todos.find((todo) => todo.title.toLocaleLowerCase() === name.toLocaleLowerCase())
-        return match ? [match.id] : []
-      }))
-      setAnalysisQuestions(result.clarification_questions)
-      setAnalysisPowered(result.ai_powered)
-      setAnalysisDone(true)
+      const active = detectedTasks.find((task) => task.number === activeTaskNumber)
+      const unanswered = active?.analysis.clarification_questions.find((question) => !active.answers[question])
+      const taskNumber = active && unanswered ? active.number : Math.max(0, ...detectedTasks.map((task) => task.number)) + 1
+      const sourceText = active && unanswered ? active.sourceText : text
+      const answers = active && unanswered ? { ...active.answers, [unanswered]: text } : {}
+      setChatMessages((current) => [...current, { id: Date.now(), role: 'user', text, taskNumber }])
+      const result = await api.analyzeTask(sourceText, answers)
+      const updated = { number: taskNumber, sourceText, answers, analysis: result }
+      setDetectedTasks((current) => [...current.filter((task) => task.number !== taskNumber), updated].sort((a, b) => a.number - b.number))
+      setActiveTaskNumber(result.clarification_questions.length ? taskNumber : null)
+      const question = result.clarification_questions.find((item) => !answers[item])
+      setChatMessages((current) => [...current, {
+        id: Date.now() + 1,
+        role: 'assistant',
+        taskNumber,
+        text: question ?? `Task ${taskNumber} is ready. Select its highlighted icon to review and create it.`,
+      }])
     } catch (reason) {
       showError(reason)
     } finally {
       setAnalyzing(false)
     }
+  }
+
+  function openDetectedTask(task: DetectedTask) {
+    const suggestion = task.analysis.suggestion
+    setError('')
+    setEditingId(null)
+    setSourceTaskNumber(task.number)
+    setTitle(suggestion.title)
+    setDescription(suggestion.description)
+    setSelectedType(suggestion.todo_type)
+    setCreatingType(false)
+    setNewType('')
+    setParentName(suggestion.parent_name ?? '')
+    setStartTime(suggestion.start_date ?? '')
+    setEndTime('')
+    setDurationDays(suggestion.expected_duration_days ? String(suggestion.expected_duration_days) : '')
+    setDurationHours(suggestion.expected_duration_hours ? String(suggestion.expected_duration_hours) : '')
+    setDependencyQuery('')
+    setDependencyIds(suggestion.dependency_names.flatMap((name) => {
+      const match = todos.find((todo) => todo.title.toLocaleLowerCase() === name.toLocaleLowerCase())
+      return match ? [match.id] : []
+    }))
+    setAddModalOpen(true)
   }
 
   async function addTodo(event: FormEvent) {
@@ -186,6 +210,10 @@ export default function App() {
       setDependencyQuery('')
       setDependencyIds([])
       setEditingId(null)
+      if (sourceTaskNumber !== null) {
+        setDetectedTasks((current) => current.filter((task) => task.number !== sourceTaskNumber))
+        setSourceTaskNumber(null)
+      }
     } catch (reason) {
       showError(reason)
     }
@@ -206,17 +234,14 @@ export default function App() {
     setDurationHours('')
     setDependencyQuery('')
     setDependencyIds([])
-    setAnalysisText('')
-    setAnalysisQuestions([])
-    setAnalysisAnswers({})
-    setAnalysisPowered(false)
-    setAnalysisDone(false)
+    setSourceTaskNumber(null)
     setAddModalOpen(true)
   }
 
   function openEditModal(todo: Todo) {
     const duration = todo.expected_duration_minutes ?? 0
     setError('')
+    setSourceTaskNumber(null)
     setEditingId(todo.id)
     setTitle(todo.title)
     setDescription(todo.description)
@@ -374,6 +399,10 @@ export default function App() {
                 <span aria-hidden="true">☰</span> {sidebarOpen ? 'Hide tasks' : 'Show tasks'}
               </button>
               <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
+              <button className={`chat-toggle ${detectedTasks.length ? 'has-detected' : ''}`} onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
+                <span aria-hidden="true">◌</span> Chat
+                {detectedTasks.length > 0 && <b>{detectedTasks.length}</b>}
+              </button>
               <div className="status-counters" aria-label="Task status counts">
                 {(['pending', 'scheduled', 'running', 'completed'] as const).map((status) => (
                   <div className={`status-count status-${status}`} key={status}>
@@ -433,22 +462,6 @@ export default function App() {
             </div>
             <form onSubmit={addTodo}>
               {error && <p className="error" role="alert">{error}</p>}
-              {editingId === null && <section className="task-detection">
-                <div className="task-detection-heading">
-                  <div><strong>Describe it naturally</strong><small> Detect the task details, then answer any follow-up questions.</small></div>
-                  {analysisDone && <span>{analysisPowered ? 'AI assisted' : 'Local detection'}</span>}
-                </div>
-                <textarea value={analysisText} onChange={(event) => setAnalysisText(event.target.value)} placeholder="Plan the product launch tomorrow for 3 hours, after Review copy…" rows={3} />
-                {analysisQuestions.length > 0 && <div className="clarification-questions">
-                  <strong>A few details would help</strong>
-                  {analysisQuestions.map((question) => <label key={question}>{question}
-                    <input value={analysisAnswers[question] ?? ''} onChange={(event) => setAnalysisAnswers((current) => ({ ...current, [question]: event.target.value }))} placeholder="Type your answer…" />
-                  </label>)}
-                </div>}
-                <button className="detect-task" type="button" onClick={analyzeTask} disabled={analyzing || (!analysisText.trim() && !title.trim())}>
-                  {analyzing ? 'Detecting…' : analysisQuestions.length ? 'Refine details' : 'Detect task details'}
-                </button>
-              </section>}
               <label>What do you want to accomplish?
                 <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add something meaningful…" maxLength={200} />
               </label>
@@ -504,6 +517,35 @@ export default function App() {
           </section>
         </div>
       )}
+
+      {chatOpen && <aside className="chat-drawer" aria-label="Task detection chat">
+        <div className="chat-heading">
+          <div><p className="eyebrow">Task assistant</p><h2>Chat</h2></div>
+          <button onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
+        </div>
+        {detectedTasks.length > 0 && <div className="detected-task-strip" aria-label="Detected tasks">
+          {detectedTasks.map((task) => <button className="task-marker ready" onClick={() => openDetectedTask(task)} title={`Create task ${task.number}: ${task.analysis.suggestion.title}`} key={task.number}>
+            <span>＋</span><b>{task.number}</b>
+          </button>)}
+        </div>}
+        <div className="chat-messages" aria-live="polite">
+          {chatMessages.length === 0 && <div className="chat-empty"><span>✦</span><p>Describe something you need to do. I’ll detect the task and ask for any missing details.</p></div>}
+          {chatMessages.map((message) => {
+            const task = message.taskNumber ? detectedTasks.find((item) => item.number === message.taskNumber) : undefined
+            return <div className={`chat-message ${message.role}`} key={message.id}>
+              <p>{message.text}</p>
+              {task && <button className="inline-task-marker" onClick={() => openDetectedTask(task)} title={`Review task ${task.number}`}>
+                <span>＋</span><b>{task.number}</b>
+              </button>}
+            </div>
+          })}
+          {analyzing && <div className="chat-message assistant"><p>Detecting task details…</p></div>}
+        </div>
+        <form className="chat-composer" onSubmit={sendChatMessage}>
+          {activeTaskNumber && <small>Answering about task <b>{activeTaskNumber}</b></small>}
+          <div><textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'} rows={2} /><button type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button></div>
+        </form>
+      </aside>}
     </main>
   )
 }

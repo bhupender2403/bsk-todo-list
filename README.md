@@ -5,7 +5,8 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 ## Features
 
 - Create, edit, complete, and delete todos
-- Detect task details from natural-language text with a LangGraph workflow
+- Detect task details in a separate natural-language chat with a LangGraph workflow
+- Keep numbered markers on related chat messages and open a prefilled task modal from any marker
 - Ask and answer clarification questions before creating a task
 - Add detailed descriptions and notes to tasks
 - Assign reusable types to todos and create new types while adding a task
