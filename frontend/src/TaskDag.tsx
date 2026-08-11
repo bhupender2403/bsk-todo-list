@@ -289,12 +289,17 @@ function buildTaskIssues(todos: Todo[]) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   for (const todo of todos) {
-    if (!todo.start_time) continue
+    const issues: string[] = []
+    if (!todo.start_time) issues.push('Missing schedule: no start date is set')
+    if (!todo.expected_duration_minutes) issues.push('Missing estimate: no expected duration is set')
+    if (!todo.start_time) {
+      if (issues.length) warnings.set(todo.id, issues)
+      continue
+    }
     const start = new Date(todo.start_time).getTime()
     const projectedEnd = todo.end_time
       ? new Date(todo.end_time).getTime()
       : start + (todo.expected_duration_minutes ?? 1440) * 60_000
-    const issues: string[] = []
     if (!todo.end_time && projectedEnd < today.getTime()) {
       issues.push(`Overdue: projected end ${new Date(projectedEnd).toLocaleDateString()} passed before today`)
     }
