@@ -450,9 +450,7 @@ export default function App() {
       <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <header className="app-header">
           <div>
-            <p className="eyebrow">My life workspace</p>
             <h1>Task dependencies</h1>
-            <p className="subtitle">See how your work connects.</p>
           </div>
           <div className="header-actions">
             <button className="sidebar-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-expanded={sidebarOpen}>
