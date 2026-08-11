@@ -525,27 +525,29 @@ export default function App() {
                 <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add something meaningful…" maxLength={200} />
               </label>
               <label>Description <small>Optional — add context, notes, or acceptance criteria</small>
-                <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe this task…" maxLength={5000} rows={4} />
+                <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe this task…" maxLength={5000} rows={2} />
               </label>
-              <label>Type
-                <div className="type-control">
-                  {creatingType ? (
-                    <input value={newType} onChange={(event) => setNewType(event.target.value)} placeholder="Enter a new type…" maxLength={60} />
-                  ) : (
-                    <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
-                      {types.map((item) => <option value={item} key={item}>{item}</option>)}
-                    </select>
-                  )}
-                  <button type="button" onClick={() => { setCreatingType((current) => !current); setNewType('') }}>
-                    {creatingType ? 'Use existing' : '+ New type'}
-                  </button>
-                </div>
-              </label>
-              <label>Parent task <small>Optional — search by exact name</small>
-                <input list="parent-tasks" value={parentName} onChange={(event) => setParentName(event.target.value)} placeholder="None" />
-                <datalist id="parent-tasks">{todos.filter((item) => item.id !== editingId).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
-              </label>
-              <div className="form-row">
+              <div className="form-row identity-row">
+                <label>Type
+                  <div className="type-control">
+                    {creatingType ? (
+                      <input value={newType} onChange={(event) => setNewType(event.target.value)} placeholder="Enter a new type…" maxLength={60} />
+                    ) : (
+                      <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
+                        {types.map((item) => <option value={item} key={item}>{item}</option>)}
+                      </select>
+                    )}
+                    <button type="button" onClick={() => { setCreatingType((current) => !current); setNewType('') }}>
+                      {creatingType ? 'Existing' : '+ New'}
+                    </button>
+                  </div>
+                </label>
+                <label>Parent task <small>Optional — search by exact name</small>
+                  <input list="parent-tasks" value={parentName} onChange={(event) => setParentName(event.target.value)} placeholder="None" />
+                  <datalist id="parent-tasks">{todos.filter((item) => item.id !== editingId).map((item) => <option value={item.title} key={item.id}>#{item.id}</option>)}</datalist>
+                </label>
+              </div>
+              <div className="form-row schedule-form-row">
                 <label>Start date
                   <div className="date-time-control">
                     <input ref={startTimeInput} type="date" value={startTime} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setStartTime(event.target.value)} />
@@ -553,13 +555,13 @@ export default function App() {
                   </div>
                 </label>
                 <label>End time<input type="datetime-local" value={endTime} onChange={(event) => setEndTime(event.target.value)} /></label>
+                <label>Expected duration
+                  <div className="duration-control">
+                    <span><input type="number" min="0" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} placeholder="0" /> days</span>
+                    <span><input type="number" min="0" value={durationHours} onChange={(event) => setDurationHours(event.target.value)} placeholder="0" /> hours</span>
+                  </div>
+                </label>
               </div>
-              <label>Expected duration
-                <div className="duration-control">
-                  <span><input type="number" min="0" value={durationDays} onChange={(event) => setDurationDays(event.target.value)} placeholder="0" /> days</span>
-                  <span><input type="number" min="0" value={durationHours} onChange={(event) => setDurationHours(event.target.value)} placeholder="0" /> hours</span>
-                </div>
-              </label>
               <label>Dependencies <small>Search and add any tasks that must come first</small>
                 <div className="dependency-control">
                   <input list="dependency-tasks" value={dependencyQuery} onChange={(event) => setDependencyQuery(event.target.value)} placeholder="Search task name…" />
