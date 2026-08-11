@@ -172,13 +172,19 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .chat-message.user p { border-radius: 14px 14px 4px 14px; background: #526b57; color: white; }
 .inline-task-marker { width: 29px; height: 29px; border-radius: 8px; }
 .inline-task-marker span { font-size: 15px; }
-.chat-composer { padding: 14px 16px 16px; border-top: 1px solid #e2e5de; background: #f7f8f4; }
+.chat-composer { position: relative; padding: 14px 16px 16px; border-top: 1px solid #e2e5de; background: #f7f8f4; }
+.task-reference-tooltip { position: absolute; right: 16px; bottom: calc(100% + 7px); left: 16px; max-height: 240px; display: grid; gap: 3px; overflow-y: auto; padding: 7px; border: 1px solid #d5dad2; border-radius: 12px; background: #fff; box-shadow: 0 14px 38px rgba(34,43,36,.18); }
+.task-reference-tooltip button { width: 100%; height: auto; display: grid; grid-template-columns: 48px minmax(0, 1fr); place-content: initial; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: #3f4841; text-align: left; }
+.task-reference-tooltip button:hover { background: #eef2eb; }
+.task-reference-tooltip button b { color: #697b6c; font-size: 11px; }
+.task-reference-tooltip button span { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.task-reference-tooltip p { margin: 0; padding: 10px; color: #939993; font-size: 11px; text-align: center; }
 .chat-composer > small { display: block; margin-bottom: 7px; color: #8b6b47; font-size: 10px; }
 .chat-composer > div { display: flex; align-items: flex-end; gap: 8px; }
 .chat-composer textarea { min-width: 0; flex: 1; resize: none; padding: 11px 12px; border: 1px solid #d7dcd4; border-radius: 11px; outline: 0; background: white; color: #343a35; font: inherit; font-size: 12px; line-height: 1.4; }
 .chat-composer textarea:focus { border-color: #819585; box-shadow: 0 0 0 3px rgba(89,117,94,.09); }
-.chat-composer button { width: 38px; height: 38px; display: grid; place-content: center; border: 0; border-radius: 10px; background: #465e4b; color: white; font-size: 18px; }
-.chat-composer button:disabled { opacity: .45; }
+.chat-composer > div > button { width: 38px; height: 38px; display: grid; place-content: center; border: 0; border-radius: 10px; background: #465e4b; color: white; font-size: 18px; }
+.chat-composer > div > button:disabled { opacity: .45; }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
 @keyframes chat-in { from { opacity: 0; transform: translateX(12px); } }

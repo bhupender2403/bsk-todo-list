@@ -41,6 +41,7 @@ export default function App() {
   const dragOffset = useRef({ x: 0, y: 0 })
   const startTimeInput = useRef<HTMLInputElement>(null)
   const detailStartTimeInput = useRef<HTMLInputElement>(null)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     Promise.all([api.list(), api.listTypes()])
@@ -97,6 +98,12 @@ export default function App() {
     () => detectedTasks.filter((task) => task.analysis.clarification_questions.length === 0),
     [detectedTasks],
   )
+
+  const taskReferenceQuery = chatInput.match(/(?:^|\s)#(\d*)$/)?.[1] ?? null
+  const taskReferenceMatches = useMemo(() => {
+    if (taskReferenceQuery === null) return []
+    return todos.filter((todo) => String(todo.id).includes(taskReferenceQuery)).slice(0, 8)
+  }, [todos, taskReferenceQuery])
 
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
   const statusCounts = useMemo(() => todos.reduce(
@@ -161,6 +168,11 @@ export default function App() {
       return match ? [match.id] : []
     }))
     setAddModalOpen(true)
+  }
+
+  function insertTaskReference(todo: Todo) {
+    setChatInput((current) => current.replace(/#\d*$/, `#${todo.id} ${todo.title}`))
+    requestAnimationFrame(() => chatInputRef.current?.focus())
   }
 
   async function addTodo(event: FormEvent) {
@@ -547,8 +559,13 @@ export default function App() {
           {analyzing && <div className="chat-message assistant"><p>Detecting task details…</p></div>}
         </div>
         <form className="chat-composer" onSubmit={sendChatMessage}>
+          {taskReferenceQuery !== null && <div className="task-reference-tooltip" role="listbox" aria-label="Task references">
+            {taskReferenceMatches.length > 0 ? taskReferenceMatches.map((todo) => <button type="button" role="option" onClick={() => insertTaskReference(todo)} key={todo.id}>
+              <b>#{todo.id}</b><span>{todo.title}</span>
+            </button>) : <p>No task number matches #{taskReferenceQuery}</p>}
+          </div>}
           {activeTaskNumber && <small>Answering about task <b>{activeTaskNumber}</b></small>}
-          <div><textarea value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'} rows={2} /><button type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button></div>
+          <div><textarea ref={chatInputRef} value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder={activeTaskNumber ? `Add information for task ${activeTaskNumber}…` : 'Describe a task…'} rows={2} /><button type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button></div>
         </form>
       </aside>}
     </main>
