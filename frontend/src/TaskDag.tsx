@@ -5,6 +5,7 @@ type Props = {
   todos: Todo[]
   selectedId: number | null
   onSelect: (id: number) => void
+  onOpen: (id: number) => void
 }
 
 type Edge = { from: number; to: number }
@@ -17,7 +18,7 @@ const DAY_BAR_GAP = 12
 const MIN_NODE_WIDTH = 52
 const ROW_GAP = 22
 
-export default function TaskDag({ todos, selectedId, onSelect }: Props) {
+export default function TaskDag({ todos, selectedId, onSelect, onOpen }: Props) {
   const graph = useMemo(() => layoutGraph(todos), [todos])
   const timeline = useMemo(() => buildTimeline(todos), [todos])
 
@@ -61,7 +62,7 @@ export default function TaskDag({ todos, selectedId, onSelect }: Props) {
           })}
 
           {graph.nodes.map(({ todo, x, y, width }) => (
-            <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''}`} onClick={() => onSelect(todo.id)} key={todo.id}>
+            <g className={`dag-node status-${getTodoStatus(todo)} ${selectedId === todo.id ? 'selected' : ''}`} onClick={() => onSelect(todo.id)} onDoubleClick={() => onOpen(todo.id)} key={todo.id}>
               <rect x={x} y={y} width={width} height={NODE_HEIGHT} rx="12" />
               <text className="dag-title" x={x + 12} y={y + 31}>{nodeLabel(todo, width)}</text>
               {getTodoStatus(todo) === 'completed' && width >= 80 && <text className="dag-check" x={x + width - 18} y={y + 31}>✓</text>}

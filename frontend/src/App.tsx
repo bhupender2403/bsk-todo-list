@@ -436,7 +436,7 @@ export default function App() {
             {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
               <p className="sidebar-empty">No matching tasks.</p>
             ) : visibleTodos.map((todo) => (
-              <button className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''}`} onClick={() => openTaskDetail(todo.id)} key={todo.id}>
+              <button className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''}`} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
                   <small>#{todo.id} · {todo.todo_type} · {getTodoStatus(todo)}</small>
@@ -474,7 +474,7 @@ export default function App() {
 
           {error && <p className="error" role="alert">{error}</p>}
 
-          <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={openTaskDetail} />
+          <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} />
         </section>
       </section>
 
