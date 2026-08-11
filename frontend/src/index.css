@@ -157,7 +157,11 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .chat-heading h2 { margin: 0; font-family: 'Newsreader', serif; font-size: 29px; }
 .assistant-config { display: inline-block; margin-top: 6px; padding: 4px 7px; border-radius: 99px; background: #eceee9; color: #7b837c; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .assistant-config.configured { background: #e2ece0; color: #526a56; }
-.chat-heading > button { width: 30px; height: 30px; display: grid; place-content: center; border: 0; border-radius: 50%; background: #eceee9; color: #707870; font-size: 20px; }
+.chat-heading-actions { display: flex; align-items: center; gap: 7px; }
+.chat-heading-actions button { border: 0; color: #707870; }
+.chat-heading-actions .clear-chat { padding: 7px 9px; border-radius: 8px; background: #f0f1ec; font-size: 10px; font-weight: 600; }
+.chat-heading-actions .clear-chat:disabled { opacity: .4; cursor: default; }
+.chat-heading-actions .close-chat { width: 30px; height: 30px; display: grid; place-content: center; border-radius: 50%; background: #eceee9; font-size: 20px; }
 .inline-task-marker { position: relative; flex: 0 0 auto; width: 35px; height: 35px; display: grid; place-content: center; border: 1px solid #cf9148; border-radius: 10px; background: #fff4df; color: #8b5b27; box-shadow: 0 0 0 3px rgba(207,145,72,.12); }
 .inline-task-marker span { font-size: 18px; line-height: 1; }
 .inline-task-marker b { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; display: grid; place-content: center; padding: 0 4px; border: 2px solid #fbfbf7; border-radius: 99px; background: #bd7732; color: white; font-size: 9px; }

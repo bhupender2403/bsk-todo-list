@@ -205,6 +205,14 @@ export default function App() {
     requestAnimationFrame(() => chatInputRef.current?.focus())
   }
 
+  function clearChat() {
+    setChatMessages([])
+    setDetectedTasks([])
+    setActiveTaskNumber(null)
+    setChatInput('')
+    setError('')
+  }
+
   async function addTodo(event: FormEvent) {
     event.preventDefault()
     if (!title.trim()) return
@@ -571,7 +579,10 @@ export default function App() {
               {taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'Local detector'}
             </span>
           </div>
-          <button onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
+          <div className="chat-heading-actions">
+            <button className="clear-chat" onClick={clearChat} disabled={chatMessages.length === 0 && !chatInput} aria-label="Clear chat">Clear</button>
+            <button className="close-chat" onClick={() => setChatOpen(false)} aria-label="Close chat">×</button>
+          </div>
         </div>
         <div className="chat-messages" aria-live="polite">
           {chatMessages.length === 0 && <div className="chat-empty"><span>✦</span><p>Describe something you need to do. I’ll detect the task and ask for any missing details.</p></div>}
