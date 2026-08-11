@@ -29,7 +29,7 @@ def _openai_task_command(text: str) -> Optional[Dict[str, object]]:
         response = OpenAI().chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             messages=[
-                {"role": "system", "content": "Select a task mutation tool only when the user clearly asks to update an existing task. Otherwise do not call a tool."},
+                {"role": "system", "content": "Select a task mutation tool only when the user clearly asks to update an existing task. A task ID is valid only when written explicitly as # followed by digits. Never infer a task ID from an unprefixed number, date, duration, position, or name. Otherwise do not call a tool."},
                 {"role": "user", "content": text},
             ],
             tools=TASK_TOOLS,
@@ -39,7 +39,8 @@ def _openai_task_command(text: str) -> Optional[Dict[str, object]]:
         if len(calls) != 1:
             return None
         call = calls[0].function
-        return _command_from_tool_call(call.name, json.loads(call.arguments))
+        command = _command_from_tool_call(call.name, json.loads(call.arguments))
+        return command if command is not None and _has_explicit_task_ids(text, command) else None
     except Exception:
         return None
 
@@ -57,6 +58,17 @@ def _command_from_tool_call(name: str, arguments: Dict[str, object]) -> Optional
     if name == "set_start_time":
         return _start_command(task_id, str(arguments["when"]))
     return None
+
+
+def _has_explicit_task_ids(text: str, command: Dict[str, object]) -> bool:
+    referenced_ids = {
+        int(value)
+        for key, value in command.items()
+        if key in {"task_id", "parent_id", "dependency_id"}
+    }
+    return bool(referenced_ids) and all(
+        re.search(rf"#\s*{task_id}\b", text) is not None for task_id in referenced_ids
+    )
 
 
 def _start_command(task_id: int, when: str) -> Dict[str, object]:

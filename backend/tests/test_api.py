@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from app.database import Base, engine
 from app.main import app
+from app.task_commands import _has_explicit_task_ids
 
 
 def setup_function():
@@ -303,3 +304,10 @@ def test_task_command_declines_non_mutation(monkeypatch):
         "todo": None,
         "source": "local",
     }
+
+
+def test_tool_call_requires_hash_prefixed_task_ids():
+    command = {"action": "duration", "task_id": 1, "minutes": 1440}
+
+    assert _has_explicit_task_ids("Set estimated time for #1 to 1 day", command)
+    assert not _has_explicit_task_ids("Add a new 1 day task named clean room", command)
