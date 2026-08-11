@@ -97,7 +97,10 @@ export default function App() {
   }, [todos])
 
   const readyDetectedTasks = useMemo(
-    () => detectedTasks.filter((task) => task.analysis.clarification_questions.length === 0),
+    () => detectedTasks.filter((task) => {
+      const title = task.analysis.suggestion.title.trim()
+      return title.length > 0 && title.toLocaleLowerCase() !== 'new task'
+    }),
     [detectedTasks],
   )
 
