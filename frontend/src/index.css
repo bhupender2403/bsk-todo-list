@@ -265,10 +265,8 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .aim-task-icon.completed { background: #eef0ed; color: #8b928c; }
 .aim-task-icon:hover, .aim-task-icon:focus-visible { z-index: 20; border-color: #718676; outline: none; }
 .aim-task-tooltip { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; display: none; width: min(245px, calc(100vw - 72px)); padding: 11px; border: 1px solid #d9ded6; border-radius: 10px; background: #303832; color: white; box-shadow: 0 10px 28px rgba(33,42,35,.22); text-align: left; pointer-events: none; }
-.aim-task-icon:nth-last-child(-n+4) .aim-task-tooltip { right: 0; left: auto; }
 .aim-task-icon:hover .aim-task-tooltip, .aim-task-icon:focus-visible .aim-task-tooltip { display: block; }
 .aim-task-tooltip::after { content: ''; position: absolute; bottom: 100%; left: 12px; border: 6px solid transparent; border-bottom-color: #303832; }
-.aim-task-icon:nth-last-child(-n+4) .aim-task-tooltip::after { right: 12px; left: auto; }
 .aim-task-tooltip strong { display: block; font-size: 12px; line-height: 1.35; }
 .aim-task-tooltip > small { display: block; margin-top: 3px; color: #bdc8c0; font-size: 9px; text-transform: capitalize; }
 .aim-task-tooltip p { margin: 8px 0; color: #e3e8e4; font-size: 10px; line-height: 1.4; }
