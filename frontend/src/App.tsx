@@ -46,6 +46,7 @@ export default function App() {
   const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
   const [contextAimDraft, setContextAimDraft] = useState<{ name: string; description: string } | null>(null)
   const [contextTaskDraft, setContextTaskDraft] = useState<ContextTaskDraft | null>(null)
+  const [contextDependencyQuery, setContextDependencyQuery] = useState('')
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null)
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null)
   const [sprintDropActive, setSprintDropActive] = useState(false)
@@ -331,6 +332,19 @@ export default function App() {
 
   function changeContextTask(changes: Partial<ContextTaskDraft>) {
     setContextTaskDraft((current) => ({ ...(current ?? contextDraftFor(loadedTask)), ...changes }))
+  }
+
+  function addContextDependency() {
+    const query = contextDependencyQuery.trim().toLocaleLowerCase()
+    const dependency = todos.find((todo) => todo.id !== loadedTaskId && (todo.title.toLocaleLowerCase() === query || `#${todo.id}` === query || `#${todo.id} ${todo.title}`.toLocaleLowerCase() === query))
+    if (!dependency) {
+      setError('Select a valid dependency')
+      return
+    }
+    const current = contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []
+    changeContextTask({ dependency_ids: current.includes(dependency.id) ? current : [...current, dependency.id] })
+    setContextDependencyQuery('')
+    setError('')
   }
 
   async function saveContextAim() {
@@ -988,7 +1002,7 @@ export default function App() {
             <textarea value={contextTaskDraft?.description ?? loadedTask?.description ?? ''} onChange={(event) => changeContextTask({ description: event.target.value })} placeholder="Task description" rows={2} />
             <div className="context-form-row"><label>Sprint<select value={contextTaskDraft?.sprint_id ?? loadedTask?.sprint_id ?? ''} onChange={(event) => changeContextTask({ sprint_id: event.target.value ? Number(event.target.value) : null })}><option value="">None</option>{sprints.map((sprint) => <option value={sprint.id} key={sprint.id}>{sprint.name}</option>)}</select></label><label>Aim<select value={contextTaskDraft?.aim_id ?? loadedTask?.aim_id ?? ''} onChange={(event) => { const aimId = event.target.value ? Number(event.target.value) : null; changeContextTask({ aim_id: aimId }); setLoadedAimId(aimId) }}><option value="">None</option>{aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}</select></label></div>
             <div className="context-form-row three"><label>Start date<input type="date" value={(contextTaskDraft?.start_time ?? loadedTask?.start_time ?? '').slice(0, 10)} onChange={(event) => changeContextTask({ start_time: event.target.value ? `${event.target.value}T00:00:00` : null })} /></label><label>End date<input type="date" value={(contextTaskDraft?.end_time ?? loadedTask?.end_time ?? '').slice(0, 10)} onChange={(event) => changeContextTask({ end_time: event.target.value ? `${event.target.value}T00:00:00` : null })} /></label><label>Estimated hours<input type="number" min="0" step="0.25" value={(contextTaskDraft?.expected_duration_minutes ?? loadedTask?.expected_duration_minutes ?? 0) / 60 || ''} onChange={(event) => changeContextTask({ expected_duration_minutes: Number(event.target.value) * 60 || null })} /></label></div>
-            <label className="context-dependencies">Dependencies<select multiple value={(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).map(String)} onChange={(event) => changeContextTask({ dependency_ids: Array.from(event.target.selectedOptions, (option) => Number(option.value)) })}>{todos.filter((todo) => todo.id !== loadedTaskId).map((todo) => <option value={todo.id} key={todo.id}>#{todo.id} {todo.title}</option>)}</select></label>
+            <div className="context-dependencies"><label htmlFor="context-dependency-input">Dependencies</label><div><input id="context-dependency-input" list="context-dependency-options" value={contextDependencyQuery} onChange={(event) => setContextDependencyQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addContextDependency() } }} placeholder="Search by task name or #ID…" /><datalist id="context-dependency-options">{todos.filter((todo) => todo.id !== loadedTaskId && !(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).includes(todo.id)).map((todo) => <option value={`#${todo.id} ${todo.title}`} key={todo.id} />)}</datalist><button onClick={addContextDependency} disabled={!contextDependencyQuery.trim()}>Add</button></div>{(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).length > 0 && <div className="context-dependency-chips">{(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).map((id) => <button onClick={() => changeContextTask({ dependency_ids: (contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).filter((value) => value !== id) })} key={id}>#{id} {taskName(id)} ×</button>)}</div>}</div>
             <div className="context-items"><span>Todo items</span>{(contextTaskDraft?.todo_items ?? loadedTask?.todo_items ?? []).map((item, index) => <div key={item.id ?? index}><b>{item.id ? `$${item.id}` : 'New'}</b><input value={item.name} onChange={(event) => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value) })} /><input type="number" min="0" step="0.25" value={item.estimated_duration_minutes / 60 || ''} onChange={(event) => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).map((value, itemIndex) => itemIndex === index ? { ...value, estimated_duration_minutes: Number(event.target.value) * 60 } : value) })} /><button onClick={() => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).filter((_, itemIndex) => itemIndex !== index) })}>×</button></div>)}<button className="add-context-item" onClick={() => changeContextTask({ todo_items: [...(contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items), { name: 'New todo item', estimated_duration_minutes: 0 }] })}>＋ Add todo item</button></div>
             <button className="context-save" onClick={saveContextTask} disabled={!(contextTaskDraft?.title ?? loadedTask?.title ?? '').trim()}>{loadedTaskId === null ? 'Create task' : 'Update task'}</button>
           </section>

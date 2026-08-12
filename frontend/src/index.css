@@ -275,7 +275,13 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .context-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .context-form-row.three { grid-template-columns: repeat(3, 1fr); }
 .context-form-row label, .context-dependencies { display: grid; grid-template-columns: 1fr; justify-content: stretch; gap: 4px; }
-.context-dependencies select { min-height: 62px; }
+.context-dependencies > label { color: #7e867f; font-size: 10px; }
+.context-dependencies > div:not(.context-dependency-chips) { display: flex; gap: 7px; }
+.context-dependencies input { min-width: 0; flex: 1; }
+.context-dependencies > div > button { padding: 0 13px; border: 1px solid #d9ddd5; border-radius: 8px; background: #edf0e9; color: #58675b; font-size: 10px; }
+.context-dependencies > div > button:disabled { opacity: .4; }
+.context-dependency-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.context-dependency-chips button { padding: 5px 8px !important; border: 0 !important; border-radius: 99px !important; background: #e5eae2 !important; color: #526156 !important; font-size: 9px !important; }
 .context-items { display: grid; gap: 5px; padding: 9px; border: 1px solid #e1e4de; border-radius: 9px; }
 .context-items > span { color: #7e867f; font-size: 10px; }
 .context-items > div { display: grid; grid-template-columns: 30px 1fr 70px 24px; gap: 5px; align-items: center; }
