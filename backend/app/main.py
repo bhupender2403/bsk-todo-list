@@ -241,21 +241,6 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
         return {"handled": False, "source": source}
 
     action = command["action"]
-    if action in {"rename_aim", "describe_aim"}:
-        aim_id = int(command["aim_id"])
-        aim = db.get(Aim, aim_id)
-        if aim is None:
-            raise HTTPException(status_code=404, detail="Aim not found")
-        if action == "rename_aim":
-            aim.name = clean_title(str(command["name"]))
-            message = f"Renamed aim @{aim_id} to “{aim.name}”."
-        else:
-            aim.description = str(command["description"]).strip()
-            message = f"Updated the description for aim @{aim_id}."
-        db.commit()
-        db.refresh(aim)
-        return {"handled": True, "message": message, "aim": aim, "source": source}
-
     task_id = int(command["task_id"])
     todo = find_todo(task_id, db)
     if action == "dependency":

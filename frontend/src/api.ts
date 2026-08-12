@@ -67,7 +67,6 @@ export type TaskCommandResult = {
   handled: boolean
   message: string | null
   todo: Todo | null
-  aim: Aim | null
   source: string
 }
 
@@ -113,8 +112,6 @@ export const api = {
   listAims: () => request<Aim[]>('/api/aims'),
   createAim: (name: string, description: string) =>
     request<Aim>('/api/aims', { method: 'POST', body: JSON.stringify({ name, description }) }),
-  updateAim: (id: number, name: string, description: string) =>
-    request<Aim>(`/api/aims/${id}`, { method: 'PATCH', body: JSON.stringify({ name, description }) }),
   analyzeTask: (text: string, answers: Record<string, string> = {}, loadedTaskId: number | null = null, loadedAimId: number | null = null) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers, loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),

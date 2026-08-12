@@ -3,7 +3,7 @@ import { api, getTodoStatus, type Aim, type Sprint, type TaskAnalysis, type Task
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
-type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string; aimDraft?: { name: string; description: string } }
+type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string }
 type DetectedTask = { number: number; sourceText: string; answers: Record<string, string>; analysis: TaskAnalysis }
 type DebugEntry = { id: number; time: string; stage: string; handler: string; detail: string }
 type ContextTaskDraft = {
@@ -44,11 +44,9 @@ export default function App() {
   const [aimModalOpen, setAimModalOpen] = useState(false)
   const [aimName, setAimName] = useState('')
   const [aimDescription, setAimDescription] = useState('')
-  const [pendingAimName, setPendingAimName] = useState(false)
   const [dashboardMode, setDashboardMode] = useState<'tasks' | 'aims'>('tasks')
   const [loadedAimId, setLoadedAimId] = useState<number | null>(null)
   const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
-  const [contextAimDraft, setContextAimDraft] = useState<{ name: string; description: string } | null>(null)
   const [contextTaskDraft, setContextTaskDraft] = useState<ContextTaskDraft | null>(null)
   const [contextDependencyQuery, setContextDependencyQuery] = useState('')
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null)
@@ -201,6 +199,13 @@ export default function App() {
       clearChat()
       return
     }
+    if (/^(?:create|add|make)(?:\s+an?|\s+new)?\s+aim\b|^update(?:\s+aim|\s+@\d+)\b/i.test(text)) {
+      const messageId = Date.now()
+      trace('Decision', 'local · aim guard', 'Aim creation and editing are unavailable in Chat')
+      setChatInput('')
+      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'Aims cannot be created or edited from Chat. Use the “Add aim” button in the top header.' }])
+      return
+    }
     const directReferences = text.match(/^(?:(@\d+|#\d+))(?:\s+(@\d+|#\d+))?$/)
     if (directReferences) {
       trace('Decision', 'local · deterministic', { action: 'load references', references: directReferences.slice(1).filter(Boolean) })
@@ -217,7 +222,6 @@ export default function App() {
       }
       setLoadedAimId(resolvedAimId)
       setLoadedTaskId(taskId)
-      setContextAimDraft(null)
       setContextTaskDraft(task ? contextDraftFor(task) : null)
       setContextDependencyQuery('')
       setChatInput('')
@@ -238,23 +242,11 @@ export default function App() {
       const task = taskId === null ? null : todos.find((todo) => todo.id === taskId) ?? null
       setLoadedAimId(aimId ?? task?.aim_id ?? null)
       setLoadedTaskId(taskId)
-      setContextAimDraft(null)
       setContextTaskDraft(task ? contextDraftFor(task) : null)
       setContextDependencyQuery('')
       setChatInput('')
       const messageId = Date.now()
       setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Loaded ${[aimId && `@${aimId}`, taskId && `#${taskId}`].filter(Boolean).join(' and ')}.` }])
-      return
-    }
-    if (pendingAimName) {
-      trace('Decision', 'local · clarification', 'Used reply as the pending aim name')
-      const messageId = Date.now()
-      setPendingAimName(false)
-      setChatInput('')
-      setChatMessages((current) => [...current,
-        { id: messageId, role: 'user', text },
-        { id: messageId + 1, role: 'assistant', text: 'This aim is ready to review and create.', aimDraft: { name: text, description: text } },
-      ])
       return
     }
     if (/^(?:hi|hello|hey|hi there|hello there)[!. ]*$/i.test(text)) {
@@ -275,9 +267,6 @@ export default function App() {
       try {
         let commandText = text
         const looksLikeUpdate = /^(?:update|set|add|assign|depends?\s+on)\b/i.test(text)
-        if (/^update\s+aim\s+(?:name|description)\s+to\s+/i.test(text) && loadedAimId !== null) {
-          commandText = text.replace(/^update\s+aim\s+/i, `update @${loadedAimId} `)
-        }
         if (looksLikeUpdate && !/#\d+/.test(text) && loadedTaskId !== null) {
           if (/^update\s+name\s+to\s+/i.test(text)) commandText = text.replace(/^update\s+/i, `update #${loadedTaskId} `)
           else if (/^set\s+(?:estimated time|start time)\s+to\s+/i.test(text)) commandText = text.replace(/^set\s+/i, `set #${loadedTaskId} `)
@@ -287,7 +276,7 @@ export default function App() {
         trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local fallback', { endpoint: '/api/task-commands', text: commandText, context: { loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }, instructions: 'Use loaded entities for ambiguous updates; ignore them for explicit creation.' })
         const result = await api.runTaskCommand(commandText, loadedTaskId, loadedAimId)
         trace('Response', result.source === 'local' ? 'local fallback' : `OpenAI · ${result.source}`, result)
-        if (result.handled && result.message && (result.todo || result.aim)) {
+        if (result.handled && result.message && result.todo) {
           setChatInput('')
           setChatMessages((current) => [
             ...current,
@@ -299,11 +288,6 @@ export default function App() {
             setLoadedTaskId(result.todo.id)
             setLoadedAimId(result.todo.aim_id)
             setContextTaskDraft(contextDraftFor(result.todo))
-            setContextAimDraft(null)
-          } else if (result.aim) {
-            setAims((current) => current.map((aim) => aim.id === result.aim!.id ? result.aim! : aim))
-            setLoadedAimId(result.aim.id)
-            setContextAimDraft({ name: result.aim.name, description: result.aim.description })
           }
           return
         }
@@ -313,20 +297,6 @@ export default function App() {
       } finally {
         setAnalyzing(false)
       }
-    }
-    const aimRequest = text.match(/^(?:create|add)(?: a| an)? aim(?:\s+(?:to|for|named|called))?\s*(.*)$/i)
-    if (aimRequest) {
-      trace('Decision', 'local · aim detector', { action: 'create aim draft', text })
-      const messageId = Date.now()
-      const name = aimRequest[1].trim()
-      setChatInput('')
-      if (!name) {
-        setPendingAimName(true)
-        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'What should this aim be called?' }])
-      } else {
-        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'This aim is ready to review and create.', aimDraft: { name, description: text } }])
-      }
-      return
     }
     setAnalyzing(true)
     setError('')
@@ -429,20 +399,6 @@ export default function App() {
     setError('')
   }
 
-  async function saveContextAim() {
-    if (!contextAimDraft?.name.trim() && loadedAimId === null) return
-    try {
-      const current = loadedAimId === null ? null : aims.find((aim) => aim.id === loadedAimId)
-      const values = contextAimDraft ?? { name: current?.name ?? '', description: current?.description ?? '' }
-      const saved = loadedAimId === null
-        ? await api.createAim(values.name, values.description)
-        : await api.updateAim(loadedAimId, values.name, values.description)
-      setAims((items) => loadedAimId === null ? [...items, saved] : items.map((item) => item.id === saved.id ? saved : item))
-      setLoadedAimId(saved.id)
-      setContextAimDraft(null)
-    } catch (reason) { showError(reason) }
-  }
-
   async function saveContextTask() {
     if (!contextTaskDraft?.title.trim()) return
     try {
@@ -488,10 +444,8 @@ export default function App() {
     setActiveTaskNumber(null)
     setChatInput('')
     setError('')
-    setPendingAimName(false)
     setLoadedAimId(null)
     setLoadedTaskId(null)
-    setContextAimDraft(null)
     setContextTaskDraft(null)
     setContextDependencyQuery('')
     setSourceTaskNumber(null)
@@ -1041,7 +995,6 @@ export default function App() {
               {task && <button className="inline-task-marker" onClick={() => openDetectedTask(task)} title={`Review task ${task.number}`}>
                 <span>＋</span><b>{task.number}</b>
               </button>}
-              {message.aimDraft && <button className="inline-task-marker aim-marker" onClick={() => { setLoadedAimId(null); setContextAimDraft(message.aimDraft!); setLoadedTaskId(null) }} title="Review aim"><span>＋</span><b>@</b></button>}
             </div>
           })}
           {analyzing && <div className="chat-message assistant"><p>Detecting task details…</p></div>}
@@ -1088,9 +1041,8 @@ export default function App() {
         <div className="chat-related-heading"><p className="eyebrow">Loaded context</p><h2>Aim & task</h2><small>Try “load @2 #2”</small></div>
         <div className="context-editor">
           <section className="context-section aim-context">
-            <div className="context-title"><h3>Aim</h3><select value={loadedAimId ?? ''} onChange={(event) => { const id = event.target.value ? Number(event.target.value) : null; setLoadedAimId(id); setContextAimDraft(null); if (loadedTaskId && todos.find((todo) => todo.id === loadedTaskId)?.aim_id !== id) { setLoadedTaskId(null); setContextTaskDraft(contextDraftFor(null)) } }}><option value="">New aim</option>{aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}</select></div>
-            <div className="compact-aim-fields"><input value={contextAimDraft?.name ?? loadedAim?.name ?? ''} onChange={(event) => setContextAimDraft({ name: event.target.value, description: contextAimDraft?.description ?? loadedAim?.description ?? '' })} placeholder="Aim name" /><input value={contextAimDraft?.description ?? loadedAim?.description ?? ''} onChange={(event) => setContextAimDraft({ name: contextAimDraft?.name ?? loadedAim?.name ?? '', description: event.target.value })} placeholder="Short description" /></div>
-            <button className="context-save" onClick={saveContextAim} disabled={!(contextAimDraft?.name ?? loadedAim?.name ?? '').trim()}>{loadedAimId === null ? 'Create aim' : 'Update aim'}</button>
+            <div className="context-title"><h3>Aim</h3><select value={loadedAimId ?? ''} onChange={(event) => { const id = event.target.value ? Number(event.target.value) : null; setLoadedAimId(id); if (loadedTaskId && todos.find((todo) => todo.id === loadedTaskId)?.aim_id !== id) { setLoadedTaskId(null); setContextTaskDraft(contextDraftFor(null)) } }}><option value="">No aim loaded</option>{aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}</select></div>
+            {loadedAim ? <div className="aim-readonly"><strong>@{loadedAim.id} {loadedAim.name}</strong><p>{loadedAim.description || 'No description.'}</p></div> : <p className="aim-readonly-empty">Create aims from the top “Add aim” button.</p>}
             {loadedAimId !== null && loadedTaskId === null && <div className="aim-context-tasks"><h4>Tasks under this aim</h4>{aimContextTasks.length ? aimContextTasks.map((todo) => <button onClick={() => { setLoadedTaskId(todo.id); setContextTaskDraft(null) }} key={todo.id}><b>#{todo.id}</b><span>{todo.title}</span><small>{getTodoStatus(todo)}</small></button>) : <p>No tasks assigned.</p>}</div>}
           </section>
           <section className="context-section task-context">

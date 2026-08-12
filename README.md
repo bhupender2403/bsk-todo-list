@@ -14,7 +14,7 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Track visible task IDs, schedules, and expected duration
 - Create multiple named sprints with future end dates
 - Assign tasks to sprints and select a sprint-scoped timeline from the sidebar
-- Create aims from the dashboard or Chat and track their task completion progress
+- Create aims from the dashboard header and track their task completion progress
 - Assign tasks to aims from the task form, by dragging, or with `#task` and `@aim` Chat commands
 - Link tasks through searchable dependencies
 - Explore dependency relationships in an interactive DAG

@@ -12,8 +12,6 @@ TASK_TOOLS = [
     {"type": "function", "function": {"name": "set_start_time", "description": "Set a task start time using a supported relative date.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "when": {"type": "string", "enum": ["now", "tomorrow", "three days from now"]}}, "required": ["task_id", "when"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "assign_task_to_aim", "description": "Assign an existing task referenced with # to an existing aim referenced with @.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "aim_id": {"type": "integer"}}, "required": ["task_id", "aim_id"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "update_task_description", "description": "Update the description of an existing or loaded task.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "description": {"type": "string"}}, "required": ["task_id", "description"], "additionalProperties": False}}},
-    {"type": "function", "function": {"name": "rename_aim", "description": "Change the name of an existing or loaded aim.", "parameters": {"type": "object", "properties": {"aim_id": {"type": "integer"}, "name": {"type": "string"}}, "required": ["aim_id", "name"], "additionalProperties": False}}},
-    {"type": "function", "function": {"name": "update_aim_description", "description": "Update the description of an existing or loaded aim.", "parameters": {"type": "object", "properties": {"aim_id": {"type": "integer"}, "description": {"type": "string"}}, "required": ["aim_id", "description"], "additionalProperties": False}}},
 ]
 
 
@@ -54,10 +52,6 @@ Never infer entity IDs from unprefixed numbers, dates, durations, positions, or 
 
 
 def _command_from_tool_call(name: str, arguments: Dict[str, object]) -> Optional[Dict[str, object]]:
-    if name == "rename_aim":
-        return {"action": "rename_aim", "aim_id": int(arguments["aim_id"]), "name": str(arguments["name"])}
-    if name == "update_aim_description":
-        return {"action": "describe_aim", "aim_id": int(arguments["aim_id"]), "description": str(arguments["description"])}
     task_id = int(arguments["task_id"])
     if name == "add_dependency":
         return {"action": "dependency", "task_id": task_id, "dependency_id": int(arguments["dependency_id"])}
@@ -124,14 +118,6 @@ def parse_task_command(text: str) -> Optional[Dict[str, object]]:
     match = re.fullmatch(r"update #(?P<task>\d+) description to [\"“]?(?P<description>.+?)[\"”]?", command, re.I)
     if match:
         return {"action": "describe_task", "task_id": int(match["task"]), "description": match["description"].strip()}
-
-    match = re.fullmatch(r"update @(?P<aim>\d+) name to [\"“]?(?P<name>.+?)[\"”]?", command, re.I)
-    if match:
-        return {"action": "rename_aim", "aim_id": int(match["aim"]), "name": match["name"].strip()}
-
-    match = re.fullmatch(r"update @(?P<aim>\d+) description to [\"“]?(?P<description>.+?)[\"”]?", command, re.I)
-    if match:
-        return {"action": "describe_aim", "aim_id": int(match["aim"]), "description": match["description"].strip()}
 
     match = re.fullmatch(
         r"set #(?P<task>\d+) estimated time to"
