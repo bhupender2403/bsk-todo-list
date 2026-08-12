@@ -246,8 +246,11 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .sprint-modal input, .sprint-modal textarea { width: 100%; padding: 10px 11px; border: 1px solid #d9ddd5; border-radius: 9px; outline: 0; background: white; color: #343935; font: inherit; }
 .sprint-modal textarea { min-height: 88px; resize: vertical; }
 
-.aim-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 14px; align-content: start; padding: 16px; overflow: auto; }
-.aim-card { min-height: 150px; padding: 16px; border: 1px solid #dfe3db; border-radius: 14px; background: #fbfcfa; box-shadow: 0 6px 18px rgba(58,68,59,.05); transition: border-color .15s, background .15s, transform .15s; }
+.aim-dashboard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 16px; overflow: auto; }
+.aim-search { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; padding: 9px 11px; border: 1px solid #d9ddd5; border-radius: 10px; background: rgba(255,255,255,.96); color: #8b928b; box-shadow: 0 5px 14px rgba(47,57,49,.06); }
+.aim-search input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; font-size: 12px; }
+.aim-search button { padding: 0; border: 0; background: transparent; color: #899089; font-size: 17px; }
+.aim-card { min-height: 108px; padding: 14px 16px; border: 1px solid #dfe3db; border-radius: 12px; background: #fbfcfa; box-shadow: 0 5px 14px rgba(58,68,59,.04); transition: border-color .15s, background .15s, transform .15s; }
 .aim-card.drop-ready { border-color: #718f76; background: #eaf2e8; transform: translateY(-2px); }
 .aim-card-heading { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; }
 .aim-card-heading > span { color: #7b837c; font-size: 12px; font-weight: 700; }

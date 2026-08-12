@@ -45,6 +45,7 @@ export default function App() {
   const [aimName, setAimName] = useState('')
   const [aimDescription, setAimDescription] = useState('')
   const [dashboardMode, setDashboardMode] = useState<'tasks' | 'aims'>('tasks')
+  const [aimQuery, setAimQuery] = useState('')
   const [loadedAimId, setLoadedAimId] = useState<number | null>(null)
   const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
   const [contextTaskDraft, setContextTaskDraft] = useState<ContextTaskDraft | null>(null)
@@ -149,6 +150,11 @@ export default function App() {
   }, [todos, todoItemReferenceQuery])
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
   const loadedAim = aims.find((aim) => aim.id === loadedAimId) ?? null
+  const visibleAims = useMemo(() => {
+    const search = aimQuery.trim().toLocaleLowerCase()
+    if (!search) return aims
+    return aims.filter((aim) => `@${aim.id} ${aim.name} ${aim.description}`.toLocaleLowerCase().includes(search))
+  }, [aimQuery, aims])
   const loadedTask = todos.find((todo) => todo.id === loadedTaskId) ?? null
   const aimContextTasks = loadedAimId === null ? [] : todos.filter((todo) => todo.aim_id === loadedAimId)
   const contextTaskHasChanges = (() => {
@@ -846,7 +852,8 @@ export default function App() {
             {selectedSprint && <div className="sprint-view-heading"><div><span>Sprint</span><strong>{selectedSprint.name}</strong></div><small>{sprintDropActive ? 'Drop to assign task' : `${formatDate(selectedSprint.created_at)} – ${formatDate(selectedSprint.end_date)} · ${dashboardTodos.length} task${dashboardTodos.length === 1 ? '' : 's'}`}</small></div>}
             <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} rangeStart={selectedSprint?.created_at.slice(0, 10)} rangeEnd={selectedSprint?.end_date} />
           </> : <section className="aim-dashboard">
-            {aims.length === 0 ? <div className="aim-empty"><h2>No aims yet</h2><p>Create an aim, then drag tasks onto it.</p></div> : aims.map((aim) => {
+            <label className="aim-search"><span aria-hidden="true">⌕</span><input value={aimQuery} onChange={(event) => setAimQuery(event.target.value)} placeholder="Search aims by name, description, or @ID…" aria-label="Search aims" />{aimQuery && <button onClick={() => setAimQuery('')} aria-label="Clear aim search">×</button>}</label>
+            {aims.length === 0 ? <div className="aim-empty"><h2>No aims yet</h2><p>Create an aim, then drag tasks onto it.</p></div> : visibleAims.length === 0 ? <div className="aim-empty"><h2>No matching aims</h2><p>Try a different search.</p></div> : visibleAims.map((aim) => {
               const aimTasks = todos.filter((todo) => todo.aim_id === aim.id)
               const completed = aimTasks.filter((todo) => getTodoStatus(todo) === 'completed').length
               const status = aimTasks.length === 0 ? 'EMPTY' : completed === aimTasks.length ? 'COMPLETED' : `${completed} out of ${aimTasks.length} tasks completed`
