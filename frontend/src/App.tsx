@@ -176,6 +176,34 @@ export default function App() {
     event.preventDefault()
     const text = chatInput.trim()
     if (!text) return
+    if (/^clear$/i.test(text)) {
+      clearChat()
+      return
+    }
+    const directReferences = text.match(/^(?:(@\d+|#\d+))(?:\s+(@\d+|#\d+))?$/)
+    if (directReferences) {
+      const references = directReferences.slice(1).filter((value): value is string => Boolean(value))
+      const aimReference = references.find((value) => value.startsWith('@'))
+      const taskReference = references.find((value) => value.startsWith('#'))
+      const aimId = aimReference ? Number(aimReference.slice(1)) : null
+      const taskId = taskReference ? Number(taskReference.slice(1)) : null
+      const task = taskId === null ? null : todos.find((todo) => todo.id === taskId) ?? null
+      const resolvedAimId = aimId ?? task?.aim_id ?? null
+      if ((aimId !== null && !aims.some((aim) => aim.id === aimId)) || (taskId !== null && task === null)) {
+        setError('The referenced aim or task was not found')
+        return
+      }
+      setLoadedAimId(resolvedAimId)
+      setLoadedTaskId(taskId)
+      setContextAimDraft(null)
+      setContextTaskDraft(task ? contextDraftFor(task) : null)
+      setContextDependencyQuery('')
+      setChatInput('')
+      setError('')
+      const messageId = Date.now()
+      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Loaded ${references.join(' and ')}.` }])
+      return
+    }
     const loadRequest = text.match(/^load(?:\s+@(\d+))?(?:\s+#(\d+))?$/i)
     if (loadRequest && (loadRequest[1] || loadRequest[2])) {
       const aimId = loadRequest[1] ? Number(loadRequest[1]) : null
@@ -184,10 +212,12 @@ export default function App() {
         setError('The requested aim or task was not found')
         return
       }
-      setLoadedAimId(aimId)
+      const task = taskId === null ? null : todos.find((todo) => todo.id === taskId) ?? null
+      setLoadedAimId(aimId ?? task?.aim_id ?? null)
       setLoadedTaskId(taskId)
       setContextAimDraft(null)
-      setContextTaskDraft(null)
+      setContextTaskDraft(task ? contextDraftFor(task) : null)
+      setContextDependencyQuery('')
       setChatInput('')
       const messageId = Date.now()
       setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Loaded ${[aimId && `@${aimId}`, taskId && `#${taskId}`].filter(Boolean).join(' and ')}.` }])
@@ -423,6 +453,12 @@ export default function App() {
     setChatInput('')
     setError('')
     setPendingAimName(false)
+    setLoadedAimId(null)
+    setLoadedTaskId(null)
+    setContextAimDraft(null)
+    setContextTaskDraft(null)
+    setContextDependencyQuery('')
+    setSourceTaskNumber(null)
   }
 
   async function saveSprint(event: FormEvent) {
