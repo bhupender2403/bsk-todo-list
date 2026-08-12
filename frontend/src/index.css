@@ -255,6 +255,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .workspace-shared-track { border-top: 0; transition: height .18s ease; }
 .workspace-todo-block { position: absolute; min-width: 28px; height: 43px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; overflow: hidden; padding: 5px 10px; border: 1px solid #839b87; border-radius: 7px; background: #dfeadf; color: #405346; box-shadow: 0 3px 9px rgba(58,75,61,.12); cursor: grab; }
 .workspace-todo-block:active { cursor: grabbing; }
+.dragging-source { opacity: 0; }
 .workspace-todo-block.resizing { z-index: 2; cursor: ew-resize; user-select: none; }
 .workspace-todo-block b { font-size: 8px; }
 .workspace-todo-block > span:not(.resize-handle) { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
