@@ -26,6 +26,16 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     } catch (reason) { onError(reason) }
   }
 
+  function beginDrag(event: DragEvent<HTMLDivElement>, itemId: number, duration?: number) {
+    event.dataTransfer.setData('text/todo-item-id', String(itemId))
+    if (duration) {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const pointerRatio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+      event.dataTransfer.setData('text/todo-drag-offset', String(pointerRatio * duration))
+    }
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
   function place(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     const itemId = Number(event.dataTransfer.getData('text/todo-item-id'))
@@ -34,7 +44,9 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     if (!item || !sourceTask) return
     const rect = event.currentTarget.getBoundingClientRect()
     const duration = Math.min(item.worked_on_duration_minutes ?? 60, DAY_MINUTES)
-    const desired = Math.min(snap(((event.clientX - rect.left) / rect.width) * DAY_MINUTES), DAY_MINUTES - duration)
+    const dragOffset = Number(event.dataTransfer.getData('text/todo-drag-offset')) || 0
+    const pointerMinutes = ((event.clientX - rect.left) / rect.width) * DAY_MINUTES
+    const desired = Math.max(0, Math.min(snap(pointerMinutes - dragOffset), DAY_MINUTES - duration))
     const minutes = nearestAvailable(desired, duration, intervals(item.id))
     if (minutes === null) { onError(new Error('There is no free space on today’s timeline for this todo.')); return }
     void saveItem(sourceTask, item.id, { worked_on_start: dateTime(today, minutes), worked_on_duration_minutes: duration })
@@ -71,14 +83,14 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
         {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : <div className="workspace-time-track workspace-shared-track" style={{ height: `${Math.max(72, scheduled.reduce((max, entry) => Math.max(max, entry.lane + 1), 1) * 51 + 18)}px` }} onDragOver={(event) => event.preventDefault()} onDrop={place}>
           {scheduled.map(({ todo, item, start, duration, lane }) => {
             const displayed = resizePreview?.itemId === item.id ? resizePreview : { start, duration }
-            return <div className={`workspace-todo-block${resizePreview?.itemId === item.id ? ' resizing' : ''}`} draggable={!resizePreview} onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} style={{ left: `${displayed.start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${displayed.duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(displayed.duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
+            return <div className={`workspace-todo-block${resizePreview?.itemId === item.id ? ' resizing' : ''}`} draggable={!resizePreview} onDragStart={(event) => beginDrag(event, item.id, displayed.duration)} style={{ left: `${displayed.start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${displayed.duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(displayed.duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
               <span className="resize-handle start" onPointerDown={(event) => resize(event, todo, item, 'start')} /><b>#{todo.id} · ${item.id}</b><span>{item.name}</span><small>{formatMinutes(displayed.duration)}</small><span className="resize-handle end" onPointerDown={(event) => resize(event, todo, item, 'end')} />
             </div>
           })}
         </div>}
       </div>
     </div>
-    {pending.length > 0 && <section className="workspace-unscheduled"><h3>Todo items not worked on today</h3><div className="workspace-pending-rows">{pending.map(({ todo, items }) => <div className="workspace-pending-row" key={todo.id}><div className="workspace-pending-task"><b>#{todo.id}</b><strong>{todo.title}</strong><small>{items.length} pending</small></div><div className="workspace-pending-items">{items.map((item) => <div draggable onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} key={item.id}><b>${item.id}</b><span>{item.name}</span><small>estimated {formatMinutes(item.estimated_duration_minutes)}</small></div>)}</div></div>)}</div></section>}
+    {pending.length > 0 && <section className="workspace-unscheduled"><h3>Todo items not worked on today</h3><div className="workspace-pending-rows">{pending.map(({ todo, items }) => <div className="workspace-pending-row" key={todo.id}><div className="workspace-pending-task"><b>#{todo.id}</b><strong>{todo.title}</strong><small>{items.length} pending</small></div><div className="workspace-pending-items">{items.map((item) => <div draggable onDragStart={(event) => beginDrag(event, item.id)} key={item.id}><b>${item.id}</b><span>{item.name}</span><small>estimated {formatMinutes(item.estimated_duration_minutes)}</small></div>)}</div></div>)}</div></section>}
   </section>
 }
 
