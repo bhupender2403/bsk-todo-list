@@ -254,7 +254,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .sprint-modal .modal-actions button { padding: 9px 12px; border: 1px solid #daddd6; border-radius: 9px; background: white; color: #59605a; }
 .sprint-modal .modal-actions .primary { border-color: #465e4b; background: #465e4b; color: white; }
 .sprint-modal .modal-actions .primary:disabled { opacity: .45; cursor: default; }
-.chat-workspace-overlay { position: fixed; z-index: 7; top: 72px; right: max(268px, calc((100vw - 1720px)/2 + 250px)); bottom: 18px; left: max(318px, calc((100vw - 1720px)/2 + 300px)); display: grid; grid-template-columns: minmax(285px, 30%) minmax(0, 70%); overflow: hidden; background: #fafbf7; animation: fade-in .15s ease-out; }
+.chat-workspace-overlay { position: fixed; z-index: 7; top: 72px; right: max(18px, calc((100vw - 1720px)/2)); bottom: 18px; left: max(318px, calc((100vw - 1720px)/2 + 300px)); display: grid; grid-template-columns: minmax(285px, 30%) minmax(0, 70%); overflow: hidden; background: #fafbf7; animation: fade-in .15s ease-out; }
 .chat-workspace-overlay.sidebar-closed { left: max(60px, calc((100vw - 1720px)/2 + 42px)); }
 .chat-drawer { min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; border-right: 1px solid #d7dcd4; background: #fbfbf7; }
 .chat-related { min-width: 0; overflow-y: auto; padding: 26px 30px; background: radial-gradient(circle at 90% 10%, rgba(113,134,117,.1), transparent 32%), #f8f9f5; }

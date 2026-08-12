@@ -684,7 +684,7 @@ export default function App() {
           </section>}
         </section>
 
-        <aside className="risk-sidebar" aria-label="Tasks at risk">
+        {!chatOpen && <aside className="risk-sidebar" aria-label="Tasks at risk">
           <div className="risk-sidebar-heading">
             <p className="eyebrow">Attention</p>
             <h2>At risk</h2>
@@ -701,7 +701,7 @@ export default function App() {
               </button>
             ))}
           </div>
-        </aside>
+        </aside>}
       </section>
 
       {detailModalOpen && selectedTodo && (
