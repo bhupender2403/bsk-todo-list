@@ -14,22 +14,27 @@ TASK_TOOLS = [
 ]
 
 
-def resolve_task_command(text: str):
+def resolve_task_command(text: str, loaded_task_id: Optional[int] = None, loaded_aim_id: Optional[int] = None):
     if os.getenv("OPENAI_API_KEY"):
-        command = _openai_task_command(text)
+        command = _openai_task_command(text, loaded_task_id, loaded_aim_id)
         if command is not None:
             return command, os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     return parse_task_command(text), "local"
 
 
-def _openai_task_command(text: str) -> Optional[Dict[str, object]]:
+def _openai_task_command(text: str, loaded_task_id: Optional[int], loaded_aim_id: Optional[int]) -> Optional[Dict[str, object]]:
     try:
         from openai import OpenAI
 
         response = OpenAI().chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             messages=[
-                {"role": "system", "content": "Select a task mutation tool only when the user clearly asks to update an existing task. A task ID is valid only when written explicitly as # followed by digits. Never infer a task ID from an unprefixed number, date, duration, position, or name. Otherwise do not call a tool."},
+                {"role": "system", "content": f"""Select a task mutation tool only when the user asks to update an existing task.
+The currently loaded task is #{loaded_task_id or 'none'} and loaded aim is @{loaded_aim_id or 'none'}.
+When an update does not explicitly identify its target, assume it applies to the loaded task. Use the loaded aim when an aim is implied.
+An explicit #ID or @ID always overrides loaded context.
+If the user asks to create, add, or make a new task or aim, ignore the loaded IDs and do not call a mutation tool.
+Never infer entity IDs from unprefixed numbers, dates, durations, positions, or names."""},
                 {"role": "user", "content": text},
             ],
             tools=TASK_TOOLS,
@@ -40,7 +45,7 @@ def _openai_task_command(text: str) -> Optional[Dict[str, object]]:
             return None
         call = calls[0].function
         command = _command_from_tool_call(call.name, json.loads(call.arguments))
-        return command if command is not None and _has_explicit_entity_ids(text, command) else None
+        return command if command is not None and _has_valid_entity_context(text, command, loaded_task_id, loaded_aim_id) else None
     except Exception:
         return None
 
@@ -68,6 +73,14 @@ def _has_explicit_entity_ids(text: str, command: Dict[str, object]) -> bool:
     }
     aim_ids = {int(value) for key, value in command.items() if key == "aim_id"}
     return bool(task_ids) and all(re.search(rf"#\s*{task_id}\b", text) for task_id in task_ids) and all(re.search(rf"@\s*{aim_id}\b", text) for aim_id in aim_ids)
+
+
+def _has_valid_entity_context(text: str, command: Dict[str, object], loaded_task_id: Optional[int], loaded_aim_id: Optional[int]) -> bool:
+    task_ids = {int(value) for key, value in command.items() if key in {"task_id", "dependency_id"}}
+    aim_ids = {int(value) for key, value in command.items() if key == "aim_id"}
+    task_valid = all(re.search(rf"#\s*{task_id}\b", text) or (task_id == loaded_task_id and command.get("task_id") == task_id) for task_id in task_ids)
+    aim_valid = all(re.search(rf"@\s*{aim_id}\b", text) or aim_id == loaded_aim_id for aim_id in aim_ids)
+    return bool(task_ids) and task_valid and aim_valid
 
 
 def _start_command(task_id: int, when: str) -> Dict[str, object]:

@@ -114,11 +114,11 @@ export const api = {
     request<Aim>('/api/aims', { method: 'POST', body: JSON.stringify({ name, description }) }),
   updateAim: (id: number, name: string, description: string) =>
     request<Aim>(`/api/aims/${id}`, { method: 'PATCH', body: JSON.stringify({ name, description }) }),
-  analyzeTask: (text: string, answers: Record<string, string> = {}) =>
-    request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
+  analyzeTask: (text: string, answers: Record<string, string> = {}, loadedTaskId: number | null = null, loadedAimId: number | null = null) =>
+    request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers, loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),
-  runTaskCommand: (text: string) =>
-    request<TaskCommandResult>('/api/task-commands', { method: 'POST', body: JSON.stringify({ text }) }),
+  runTaskCommand: (text: string, loadedTaskId: number | null = null, loadedAimId: number | null = null) =>
+    request<TaskCommandResult>('/api/task-commands', { method: 'POST', body: JSON.stringify({ text, loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }) }),
   create: (input: TodoInput) =>
     request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) =>

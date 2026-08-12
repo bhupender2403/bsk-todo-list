@@ -210,6 +210,8 @@ def analyze_task(payload: TaskAnalysisRequest, db: Session = Depends(get_db)):
         {
             "text": payload.text,
             "answers": payload.answers,
+            "loaded_task_id": payload.loaded_task_id,
+            "loaded_aim_id": payload.loaded_aim_id,
             "task_names": list(db.scalars(select(Todo.title))),
         }
     )
@@ -232,7 +234,9 @@ def task_analysis_config():
 
 @app.post("/api/task-commands", response_model=TaskCommandResponse)
 def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db)):
-    command, source = resolve_task_command(payload.text)
+    command, source = resolve_task_command(
+        payload.text, payload.loaded_task_id, payload.loaded_aim_id
+    )
     if command is None:
         return {"handled": False, "source": source}
 

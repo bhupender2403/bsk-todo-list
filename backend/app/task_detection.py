@@ -12,6 +12,8 @@ class DetectionState(TypedDict, total=False):
     text: str
     answers: Dict[str, str]
     task_names: List[str]
+    loaded_task_id: Optional[int]
+    loaded_aim_id: Optional[int]
     suggestion: Dict[str, object]
     clarification_questions: List[str]
     ai_powered: bool
@@ -64,10 +66,17 @@ when selecting relationships. Do not invent details.
 Existing tasks: {tasks}
 Today: {today}
 User text:
-{text}""".format(
+{text}
+
+Loaded editor context: task #{loaded_task_id}, aim @{loaded_aim_id}.
+If the user asks to create, add, or make a new task or aim, ignore both loaded IDs.
+Otherwise, when the request refers ambiguously to "the task" or "the aim", assume it refers to the loaded entity.
+This extraction endpoint creates task drafts; do not turn an aim update into a new task.""".format(
             tasks=", ".join(state.get("task_names", [])),
             today=date.today().isoformat(),
             text=text,
+            loaded_task_id=state.get("loaded_task_id") or "none",
+            loaded_aim_id=state.get("loaded_aim_id") or "none",
         )
         response = OpenAI().responses.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"), input=prompt

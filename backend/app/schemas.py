@@ -68,6 +68,8 @@ class TodoResponse(BaseModel):
 class TaskAnalysisRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
     answers: Dict[str, str] = Field(default_factory=dict)
+    loaded_task_id: Optional[int] = None
+    loaded_aim_id: Optional[int] = None
 
 
 class TaskSuggestion(BaseModel):
@@ -93,6 +95,8 @@ class TaskAnalysisConfigResponse(BaseModel):
 
 class TaskCommandRequest(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
+    loaded_task_id: Optional[int] = None
+    loaded_aim_id: Optional[int] = None
 
 
 class TaskCommandResponse(BaseModel):

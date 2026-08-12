@@ -298,8 +298,8 @@ export default function App() {
           else if (/^depends?\s+on\s+#\d+/i.test(text)) commandText = `#${loadedTaskId} ${text}`
           else if (/^(?:add|assign)\s+(?:to|into)\s+@\d+/i.test(text)) commandText = text.replace(/^(add|assign)\s+/i, `$1 #${loadedTaskId} `)
         }
-        trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local fallback', { endpoint: '/api/task-commands', text: commandText })
-        const result = await api.runTaskCommand(commandText)
+        trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local fallback', { endpoint: '/api/task-commands', text: commandText, context: { loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }, instructions: 'Use loaded entities for ambiguous updates; ignore them for explicit creation.' })
+        const result = await api.runTaskCommand(commandText, loadedTaskId, loadedAimId)
         trace('Response', result.source === 'local' ? 'local fallback' : `OpenAI · ${result.source}`, result)
         if (result.handled && result.todo && result.message) {
           setChatInput('')
@@ -346,8 +346,8 @@ export default function App() {
       const sourceText = active && unanswered ? active.sourceText : text
       const answers = active && unanswered ? { ...active.answers, [unanswered]: text } : {}
       setChatMessages((current) => [...current, { id: Date.now(), role: 'user', text, taskNumber }])
-      trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local detector', { endpoint: '/api/task-analysis', text: sourceText, answers })
-      const result = await api.analyzeTask(sourceText, answers)
+      trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local detector', { endpoint: '/api/task-analysis', text: sourceText, answers, context: { loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }, instructions: 'Use loaded entities for ambiguous updates; ignore them for explicit creation.' })
+      const result = await api.analyzeTask(sourceText, answers, loadedTaskId, loadedAimId)
       trace('Response', result.analysis_source === 'local' ? 'local detector' : `OpenAI · ${result.analysis_source}`, result)
       const updated = { number: taskNumber, sourceText, answers, analysis: result }
       setDetectedTasks((current) => [...current.filter((task) => task.number !== taskNumber), updated].sort((a, b) => a.number - b.number))
