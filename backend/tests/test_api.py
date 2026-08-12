@@ -126,6 +126,24 @@ def test_dependencies_and_cycles():
         assert cycle.status_code == 422
 
 
+def test_picking_requires_unfinished_dependencies_to_be_picked():
+    with TestClient(app) as client:
+        dependency = client.post("/api/todos", json={"title": "Prepare"}).json()
+        task = client.post(
+            "/api/todos",
+            json={"title": "Execute", "dependency_ids": [dependency["id"]]},
+        ).json()
+
+        blocked = client.patch(f"/api/todos/{task['id']}", json={"is_picked": True})
+        assert blocked.status_code == 422
+        assert f"#{dependency['id']} Prepare" in blocked.json()["detail"]
+
+        client.patch(f"/api/todos/{dependency['id']}", json={"is_picked": True})
+        picked = client.patch(f"/api/todos/{task['id']}", json={"is_picked": True})
+        assert picked.status_code == 200
+        assert picked.json()["is_picked"] is True
+
+
 def test_rejects_end_before_start():
     with TestClient(app) as client:
         response = client.post(

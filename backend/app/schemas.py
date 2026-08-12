@@ -29,6 +29,7 @@ class TodoCreate(BaseModel):
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
     dependency_ids: List[int] = Field(default_factory=list)
     is_running: bool = False
+    is_picked: bool = False
     todo_items: List[TodoItemInput] = Field(default_factory=list)
 
 
@@ -42,6 +43,7 @@ class TodoUpdate(BaseModel):
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
     dependency_ids: Optional[List[int]] = None
     is_running: Optional[bool] = None
+    is_picked: Optional[bool] = None
     todo_items: Optional[List[TodoItemInput]] = None
 
 
@@ -58,6 +60,7 @@ class TodoResponse(BaseModel):
     expected_duration_minutes: Optional[int]
     dependency_ids: List[int]
     is_running: bool
+    is_picked: bool
     created_at: datetime
     updated_at: datetime
     todo_items: List[TodoItemResponse]

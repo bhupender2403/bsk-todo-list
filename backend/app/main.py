@@ -46,6 +46,7 @@ def migrate_sqlite_schema() -> None:
         "end_time": "DATETIME",
         "expected_duration_minutes": "INTEGER",
         "is_running": "BOOLEAN NOT NULL DEFAULT 0",
+        "is_picked": "BOOLEAN NOT NULL DEFAULT 0",
     }
     with engine.begin() as connection:
         for name, definition in additions.items():
@@ -252,6 +253,7 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
         expected_duration_minutes=payload.expected_duration_minutes,
         completed=payload.end_time is not None,
         is_running=payload.is_running and payload.end_time is None,
+        is_picked=payload.is_picked,
         dependencies=dependencies,
         todo_items=build_todo_items(payload.todo_items),
     )
@@ -286,11 +288,17 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
     if changes.get("end_time") is not None:
         changes["completed"] = True
         changes["is_running"] = False
+        changes["is_picked"] = False
     elif "end_time" in changes and changes["end_time"] is None:
         changes["completed"] = False
     if changes.get("is_running") is True:
         changes["completed"] = False
         changes["end_time"] = None
+    if changes.get("is_picked") is True:
+        blocked = [dependency for dependency in todo.dependencies if not dependency.completed and not dependency.is_picked]
+        if blocked:
+            labels = ", ".join(f"#{dependency.id} {dependency.title}" for dependency in blocked)
+            raise HTTPException(status_code=422, detail=f"Pick blocked by unfinished, unpicked dependencies: {labels}")
     new_dependencies = list(todo.dependencies)
     if dependency_ids is not None:
         if todo.id in dependency_ids:

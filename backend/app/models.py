@@ -24,6 +24,7 @@ class Todo(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_picked: Mapped[bool] = mapped_column(Boolean, default=False)
     aim_id: Mapped[Optional[int]] = mapped_column(ForeignKey("aims.id"), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

@@ -29,6 +29,9 @@ nav button.active { background: #dfe5dc; color: #405345; font-weight: 600; }
 .task-card { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 11px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #343935; text-align: left; transition: background .15s, border-color .15s, transform .15s; }
 .task-card:hover { background: rgba(255,255,255,.7); transform: translateX(2px); }
 .task-card.selected { border-color: #d4dbd1; background: white; box-shadow: 0 5px 16px rgba(50,60,51,.07); }
+.task-card.picked { border-color: #bd9b65; background: #fff9ed; }
+.task-card.picked.selected { box-shadow: 0 5px 16px rgba(120,88,38,.1); }
+.picked-mark { color: #b47b31; font-size: 10px; }
 .card-copy { min-width: 0; flex: 1; display: grid; gap: 3px; }
 .card-copy strong { overflow: hidden; font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .card-copy small { color: #969b95; font-size: 10px; }
@@ -103,6 +106,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .detail-actions { display: flex; gap: 8px; margin-top: 25px; }
 .detail-actions button { padding: 10px 15px; border: 1px solid #daddd6; border-radius: 9px; background: white; color: #59605a; }
 .detail-actions .primary { border-color: #465e4b; background: #465e4b; color: white; }
+.detail-actions .picked-action { border-color: #bd9b65; background: #fff7e8; color: #885d25; }
 .detail-actions .danger { margin-left: auto; color: #a34e45; }
 .welcome-empty { padding: 95px 20px; color: #919790; text-align: center; }
 .welcome-empty span { font-size: 27px; color: #7e917f; }

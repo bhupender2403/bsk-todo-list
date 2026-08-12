@@ -9,7 +9,7 @@ type DebugEntry = { id: number; time: string; stage: string; handler: string; de
 type ContextTaskDraft = {
   title: string; description: string; aim_id: number | null
   start_time: string | null; end_time: string | null; expected_duration_minutes: number | null
-  dependency_ids: number[]; is_running: boolean; todo_items: TodoItemInput[]
+  dependency_ids: number[]; is_running: boolean; is_picked: boolean; todo_items: TodoItemInput[]
 }
 
 export default function App() {
@@ -90,7 +90,7 @@ export default function App() {
       const status = getTodoStatus(todo)
       const matchesStatus = filter === 'all' || (filter === 'completed' ? status === 'completed' : status !== 'completed')
       return matchesStatus && `${todo.title} ${todo.description}`.toLocaleLowerCase().includes(search)
-    })
+    }).sort((first, second) => Number(second.is_picked) - Number(first.is_picked))
   }, [todos, filter, query])
 
   const dashboardTodos = useMemo(() => {
@@ -417,6 +417,7 @@ export default function App() {
         return match ? [match.id] : []
       }),
       is_running: false,
+      is_picked: false,
       todo_items: [],
     })
   }
@@ -426,8 +427,9 @@ export default function App() {
       title: todo.title, description: todo.description, aim_id: todo.aim_id,
       start_time: todo.start_time, end_time: todo.end_time, expected_duration_minutes: todo.expected_duration_minutes,
       dependency_ids: todo.dependency_ids, is_running: todo.is_running,
+      is_picked: todo.is_picked,
       todo_items: todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })),
-    } : { title: '', description: '', aim_id: loadedAimId, start_time: null, end_time: null, expected_duration_minutes: null, dependency_ids: [], is_running: false, todo_items: [] }
+    } : { title: '', description: '', aim_id: loadedAimId, start_time: null, end_time: null, expected_duration_minutes: null, dependency_ids: [], is_running: false, is_picked: false, todo_items: [] }
   }
 
   function changeContextTask(changes: Partial<ContextTaskDraft>) {
@@ -533,6 +535,7 @@ export default function App() {
         expected_duration_minutes: minutes || null,
         dependency_ids: dependencyIds,
         is_running: editingId === null ? false : (todos.find((item) => item.id === editingId)?.is_running ?? false),
+        is_picked: editingId === null ? false : (todos.find((item) => item.id === editingId)?.is_picked ?? false),
         todo_items: taskItems,
       }
       const todo = editingId === null
@@ -633,13 +636,17 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
-  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) {
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'is_picked' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) {
     try {
       const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
     } catch (reason) {
       showError(reason)
     }
+  }
+
+  async function togglePicked(todo: Todo) {
+    await updateTodo(todo, { is_picked: !todo.is_picked })
   }
 
   async function assignTaskToAim(todoId: number, aimId: number) {
@@ -757,11 +764,12 @@ export default function App() {
             {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
               <p className="sidebar-empty">No matching tasks.</p>
             ) : visibleTodos.map((todo) => (
-              <button draggable={dashboardMode === 'aims'} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => setDraggingTaskId(null)} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
+              <button draggable={dashboardMode === 'aims'} className={`task-card ${todo.is_picked ? 'picked' : ''} ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => setDraggingTaskId(null)} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
                   <small>#{todo.id} · {getTodoStatus(todo)}</small>
                 </span>
+                {todo.is_picked && <span className="picked-mark" title="Picked task">◆</span>}
                 {todo.completed && <span className="card-check">✓</span>}
               </button>
             ))}
@@ -862,6 +870,7 @@ export default function App() {
               ))}</ul>}
             </section>
             <div className="detail-actions">
+              <button className={selectedTodo.is_picked ? 'picked-action' : ''} onClick={() => togglePicked(selectedTodo)}>{selectedTodo.is_picked ? 'Unpick task' : 'Pick task'}</button>
               <button className="primary" onClick={() => advanceTask(selectedTodo)}>{getTodoStatus(selectedTodo) === 'completed' ? 'Reopen task' : getTodoStatus(selectedTodo) === 'running' ? 'Finish work' : 'Start work'}</button>
               <button onClick={() => openEditModal(selectedTodo)}>Edit details</button>
               <button className="danger" onClick={() => deleteTodo(selectedTodo)}>Delete</button>
