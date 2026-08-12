@@ -264,7 +264,15 @@ export default function App() {
       setAnalyzing(true)
       setError('')
       try {
-        const result = await api.runTaskCommand(text)
+        let commandText = text
+        const looksLikeUpdate = /^(?:update|set|add|assign|depends?\s+on)\b/i.test(text)
+        if (looksLikeUpdate && !/#\d+/.test(text) && loadedTaskId !== null) {
+          if (/^update\s+name\s+to\s+/i.test(text)) commandText = text.replace(/^update\s+/i, `update #${loadedTaskId} `)
+          else if (/^set\s+(?:estimated time|start time)\s+to\s+/i.test(text)) commandText = text.replace(/^set\s+/i, `set #${loadedTaskId} `)
+          else if (/^depends?\s+on\s+#\d+/i.test(text)) commandText = `#${loadedTaskId} ${text}`
+          else if (/^(?:add|assign)\s+(?:to|into)\s+@\d+/i.test(text)) commandText = text.replace(/^(add|assign)\s+/i, `$1 #${loadedTaskId} `)
+        }
+        const result = await api.runTaskCommand(commandText)
         if (result.handled && result.todo && result.message) {
           setChatInput('')
           setChatMessages((current) => [
@@ -273,6 +281,10 @@ export default function App() {
             { id: messageId + 1, role: 'assistant', text: result.message!, source: result.source },
           ])
           setTodos((current) => current.map((todo) => todo.id === result.todo!.id ? result.todo! : todo))
+          setLoadedTaskId(result.todo.id)
+          setLoadedAimId(result.todo.aim_id)
+          setContextTaskDraft(contextDraftFor(result.todo))
+          setContextAimDraft(null)
           return
         }
       } catch (reason) {
@@ -309,6 +321,7 @@ export default function App() {
       const updated = { number: taskNumber, sourceText, answers, analysis: result }
       setDetectedTasks((current) => [...current.filter((task) => task.number !== taskNumber), updated].sort((a, b) => a.number - b.number))
       setActiveTaskNumber(result.clarification_questions.length ? taskNumber : null)
+      if (result.clarification_questions.length === 0) loadDetectedTaskInContext(updated)
       const question = result.clarification_questions.find((item) => !answers[item])
       setChatMessages((current) => [...current, {
         id: Date.now() + 1,
