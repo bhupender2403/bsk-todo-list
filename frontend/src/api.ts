@@ -20,8 +20,8 @@ export type TodoItem = {
   task_id: number
   name: string
   estimated_duration_minutes: number
-  scheduled_start: string | null
-  scheduled_duration_minutes: number | null
+  worked_on_start: string | null
+  worked_on_duration_minutes: number | null
   created_at: string
 }
 
@@ -29,8 +29,8 @@ export type TodoItemInput = {
   id?: number
   name: string
   estimated_duration_minutes: number
-  scheduled_start?: string | null
-  scheduled_duration_minutes?: number | null
+  worked_on_start?: string | null
+  worked_on_duration_minutes?: number | null
 }
 
 export type TodoInput = {

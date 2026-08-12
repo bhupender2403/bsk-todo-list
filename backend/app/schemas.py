@@ -8,8 +8,8 @@ class TodoItemInput(BaseModel):
     id: Optional[int] = None
     name: str = Field(min_length=1, max_length=200)
     estimated_duration_minutes: int = Field(default=0, ge=0)
-    scheduled_start: Optional[datetime] = None
-    scheduled_duration_minutes: Optional[int] = Field(default=None, ge=15)
+    worked_on_start: Optional[datetime] = None
+    worked_on_duration_minutes: Optional[int] = Field(default=None, ge=15)
 
 
 class TodoItemResponse(BaseModel):
@@ -19,8 +19,8 @@ class TodoItemResponse(BaseModel):
     task_id: int
     name: str
     estimated_duration_minutes: int
-    scheduled_start: Optional[datetime]
-    scheduled_duration_minutes: Optional[int]
+    worked_on_start: Optional[datetime]
+    worked_on_duration_minutes: Optional[int]
     created_at: datetime
 
 

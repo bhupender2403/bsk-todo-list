@@ -60,12 +60,16 @@ def migrate_sqlite_schema() -> None:
         )
         item_columns = {column["name"] for column in inspector.get_columns("todo_items")}
         item_additions = {
-            "scheduled_start": "DATETIME",
-            "scheduled_duration_minutes": "INTEGER",
+            "worked_on_start": "DATETIME",
+            "worked_on_duration_minutes": "INTEGER",
         }
         for name, definition in item_additions.items():
             if name not in item_columns:
                 connection.execute(text(f"ALTER TABLE todo_items ADD COLUMN {name} {definition}"))
+        if "scheduled_start" in item_columns:
+            connection.execute(text("UPDATE todo_items SET worked_on_start = scheduled_start WHERE worked_on_start IS NULL"))
+        if "scheduled_duration_minutes" in item_columns:
+            connection.execute(text("UPDATE todo_items SET worked_on_duration_minutes = scheduled_duration_minutes WHERE worked_on_duration_minutes IS NULL"))
 
 
 app = FastAPI(title="BSK Todo API", version="1.0.0", lifespan=lifespan)
@@ -90,8 +94,8 @@ def build_todo_items(items) -> List[TodoItem]:
         TodoItem(
             name=clean_title(item.name),
             estimated_duration_minutes=item.estimated_duration_minutes,
-            scheduled_start=item.scheduled_start,
-            scheduled_duration_minutes=item.scheduled_duration_minutes,
+            worked_on_start=item.worked_on_start,
+            worked_on_duration_minutes=item.worked_on_duration_minutes,
         )
         for item in items
     ]
@@ -328,10 +332,10 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
                 item = TodoItem()
             item.name = clean_title(value["name"])
             item.estimated_duration_minutes = value["estimated_duration_minutes"]
-            if "scheduled_start" in value:
-                item.scheduled_start = value["scheduled_start"]
-            if "scheduled_duration_minutes" in value:
-                item.scheduled_duration_minutes = value["scheduled_duration_minutes"]
+            if "worked_on_start" in value:
+                item.worked_on_start = value["worked_on_start"]
+            if "worked_on_duration_minutes" in value:
+                item.worked_on_duration_minutes = value["worked_on_duration_minutes"]
             replacement.append(item)
         todo.todo_items = replacement
     for field, value in changes.items():

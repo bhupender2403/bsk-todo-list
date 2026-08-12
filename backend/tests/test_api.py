@@ -71,12 +71,12 @@ def test_todo_lifecycle():
                 "id": first_item["id"],
                 "name": "Build signed package",
                 "estimated_duration_minutes": 60,
-                "scheduled_start": "2026-08-12T09:30:00",
-                "scheduled_duration_minutes": 90,
+                "worked_on_start": "2026-08-12T09:30:00",
+                "worked_on_duration_minutes": 90,
             }]},
         ).json()["todo_items"][0]
-        assert scheduled["scheduled_start"].startswith("2026-08-12T09:30:00")
-        assert scheduled["scheduled_duration_minutes"] == 90
+        assert scheduled["worked_on_start"].startswith("2026-08-12T09:30:00")
+        assert scheduled["worked_on_duration_minutes"] == 90
 
         listed = client.get("/api/todos")
         assert listed.status_code == 200
