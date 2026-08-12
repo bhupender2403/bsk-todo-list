@@ -10,7 +10,6 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Ask and answer clarification questions before creating a task
 - Update existing tasks from Chat with `#ID` commands for dependencies, names, durations, and start dates
 - Add detailed descriptions and notes to tasks
-- Assign reusable types to todos and create new types while adding a task
 - Track visible task IDs, schedules, and expected duration
 - Create multiple named sprints with future end dates
 - Assign tasks to sprints and select a sprint-scoped timeline from the sidebar
@@ -136,12 +135,10 @@ npm run build
 | --- | --- | --- |
 | `GET` | `/api/todos` | List todos |
 | `GET` | `/api/workspace` | Show the active workspace |
-| `GET` | `/api/todo-types` | List reusable todo types |
 | `GET` | `/api/sprints` | List named sprints |
 | `POST` | `/api/sprints` | Create a named sprint with a future end date |
 | `GET` | `/api/aims` | List aims |
 | `POST` | `/api/aims` | Create an aim |
-| `POST` | `/api/todo-types` | Create a todo type |
 | `POST` | `/api/task-analysis` | Detect task fields and clarification questions from text |
 | `POST` | `/api/task-commands` | Apply a supported task update command |
 | `POST` | `/api/todos` | Create a todo |

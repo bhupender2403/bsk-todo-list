@@ -182,7 +182,7 @@ function truncate(value: string, length: number) {
 
 function nodeLabel(todo: Todo, width: number) {
   if (width < 80) return `#${todo.id}`
-  return truncate(`#${todo.id} · ${todo.title} · ${todo.todo_type}`, Math.max(8, Math.floor(width / 7.2) - 2))
+  return truncate(`#${todo.id} · ${todo.title}`, Math.max(8, Math.floor(width / 7.2) - 2))
 }
 
 function layoutGraph(todos: Todo[], rangeStart?: string, rangeEnd?: string) {

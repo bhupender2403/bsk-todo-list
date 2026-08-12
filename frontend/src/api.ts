@@ -2,7 +2,6 @@ export type Todo = {
   id: number
   title: string
   description: string
-  todo_type: string
   completed: boolean
   sprint_id: number | null
   aim_id: number | null
@@ -18,7 +17,6 @@ export type Todo = {
 export type TodoInput = {
   title: string
   description: string
-  todo_type: string
   sprint_id: number | null
   aim_id: number | null
   start_time: string | null
@@ -28,19 +26,12 @@ export type TodoInput = {
   is_running: boolean
 }
 
-export type TodoType = {
-  id: number
-  name: string
-  created_at: string
-}
-
 export type TodoStatus = 'pending' | 'scheduled' | 'running' | 'completed'
 
 export type TaskAnalysis = {
   suggestion: {
     title: string
     description: string
-    todo_type: string
     start_date: string | null
     expected_duration_days: number
     expected_duration_hours: number
@@ -98,7 +89,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
-  listTypes: () => request<TodoType[]>('/api/todo-types'),
   listSprints: () => request<Sprint[]>('/api/sprints'),
   createSprint: (name: string, endDate: string) =>
     request<Sprint>('/api/sprints', { method: 'POST', body: JSON.stringify({ name, end_date: endDate }) }),
@@ -110,11 +100,9 @@ export const api = {
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),
   runTaskCommand: (text: string) =>
     request<TaskCommandResult>('/api/task-commands', { method: 'POST', body: JSON.stringify({ text }) }),
-  createType: (name: string) =>
-    request<TodoType>('/api/todo-types', { method: 'POST', body: JSON.stringify({ name }) }),
   create: (input: TodoInput) =>
     request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
-  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
+  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
     request<Todo>(`/api/todos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),

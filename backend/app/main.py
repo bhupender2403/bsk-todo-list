@@ -6,11 +6,10 @@ from typing import Dict, List
 from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, select, text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import Base, WORKSPACE, engine, get_db
-from .models import Aim, Sprint, Todo, TodoType
+from .models import Aim, Sprint, Todo
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
@@ -23,8 +22,6 @@ from .schemas import (
     AimResponse,
     TodoCreate,
     TodoResponse,
-    TodoTypeCreate,
-    TodoTypeResponse,
     TodoUpdate,
 )
 from .task_detection import task_detection_graph
@@ -35,7 +32,6 @@ from .task_commands import resolve_task_command
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_sqlite_schema()
-    ensure_default_type()
     yield
 
 
@@ -46,7 +42,6 @@ def migrate_sqlite_schema() -> None:
     columns = {column["name"] for column in inspector.get_columns("todos")}
     additions = {
         "description": "TEXT NOT NULL DEFAULT ''",
-        "todo_type": "VARCHAR(60) NOT NULL DEFAULT 'General'",
         "sprint_id": "INTEGER",
         "aim_id": "INTEGER",
         "start_time": "DATETIME",
@@ -75,13 +70,6 @@ def migrate_sqlite_schema() -> None:
             )
 
 
-def ensure_default_type() -> None:
-    with Session(engine) as db:
-        if db.scalar(select(TodoType).where(TodoType.name == "General")) is None:
-            db.add(TodoType(name="General"))
-            db.commit()
-
-
 app = FastAPI(title="BSK Todo API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -97,29 +85,6 @@ def clean_title(title: str) -> str:
     if not cleaned:
         raise HTTPException(status_code=422, detail="Title cannot be blank")
     return cleaned
-
-
-def clean_type_name(name: str) -> str:
-    cleaned = " ".join(name.split())
-    if not cleaned:
-        raise HTTPException(status_code=422, detail="Type name cannot be blank")
-    return cleaned
-
-
-def find_type(name: str, db: Session) -> TodoType:
-    todo_type = db.scalar(select(TodoType).where(TodoType.name == name))
-    if todo_type is None:
-        raise HTTPException(status_code=422, detail="Todo type does not exist")
-    return todo_type
-
-
-def find_or_create_type(name: str, db: Session) -> TodoType:
-    todo_type = db.scalar(select(TodoType).where(TodoType.name == name))
-    if todo_type is None:
-        todo_type = TodoType(name=name)
-        db.add(todo_type)
-        db.flush()
-    return todo_type
 
 
 def find_todo(todo_id: int, db: Session) -> Todo:
@@ -216,7 +181,6 @@ def analyze_task(payload: TaskAnalysisRequest, db: Session = Depends(get_db)):
         {
             "text": payload.text,
             "answers": payload.answers,
-            "type_names": list(db.scalars(select(TodoType.name))),
             "task_names": list(db.scalars(select(Todo.title))),
         }
     )
@@ -271,36 +235,8 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
     return {"handled": True, "message": message, "todo": todo, "source": source}
 
 
-@app.get("/api/todo-types", response_model=List[TodoTypeResponse])
-def list_todo_types(db: Session = Depends(get_db)) -> List[TodoType]:
-    return list(db.scalars(select(TodoType).order_by(TodoType.name)))
-
-
-@app.post(
-    "/api/todo-types",
-    response_model=TodoTypeResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_todo_type(payload: TodoTypeCreate, db: Session = Depends(get_db)) -> TodoType:
-    name = clean_type_name(payload.name)
-    existing = db.scalar(select(TodoType).where(TodoType.name == name))
-    if existing is not None:
-        return existing
-    todo_type = TodoType(name=name)
-    db.add(todo_type)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        return db.scalar(select(TodoType).where(TodoType.name == name))
-    db.refresh(todo_type)
-    return todo_type
-
-
 @app.post("/api/todos", response_model=TodoResponse, status_code=status.HTTP_201_CREATED)
 def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
-    type_name = clean_type_name(payload.todo_type)
-    find_or_create_type(type_name, db)
     if payload.sprint_id is not None and db.get(Sprint, payload.sprint_id) is None:
         raise HTTPException(status_code=422, detail="Sprint does not exist")
     if payload.aim_id is not None and db.get(Aim, payload.aim_id) is None:
@@ -310,7 +246,6 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
     todo = Todo(
         title=clean_title(payload.title),
         description=payload.description.strip(),
-        todo_type=type_name,
         sprint_id=payload.sprint_id,
         aim_id=payload.aim_id,
         start_time=payload.start_time,
@@ -341,11 +276,6 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
         changes["description"] = changes["description"].strip()
     if "completed" in changes and changes["completed"] is None:
         raise HTTPException(status_code=422, detail="Completed cannot be null")
-    if "todo_type" in changes:
-        if changes["todo_type"] is None:
-            raise HTTPException(status_code=422, detail="Todo type cannot be null")
-        changes["todo_type"] = clean_type_name(changes["todo_type"])
-        find_or_create_type(changes["todo_type"], db)
     if changes.get("sprint_id") is not None and "sprint_id" in changes:
         if db.get(Sprint, changes["sprint_id"]) is None:
             raise HTTPException(status_code=422, detail="Sprint does not exist")

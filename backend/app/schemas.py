@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class TodoCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=5000)
-    todo_type: str = Field(default="General", min_length=1, max_length=60)
     sprint_id: Optional[int] = None
     aim_id: Optional[int] = None
     start_time: Optional[datetime] = None
@@ -20,7 +19,6 @@ class TodoCreate(BaseModel):
 class TodoUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=5000)
-    todo_type: Optional[str] = Field(default=None, min_length=1, max_length=60)
     completed: Optional[bool] = None
     sprint_id: Optional[int] = None
     aim_id: Optional[int] = None
@@ -37,7 +35,6 @@ class TodoResponse(BaseModel):
     id: int
     title: str
     description: str
-    todo_type: str
     completed: bool
     sprint_id: Optional[int]
     aim_id: Optional[int]
@@ -49,17 +46,6 @@ class TodoResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-class TodoTypeCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=60)
-
-
-class TodoTypeResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
-    created_at: datetime
-
 class TaskAnalysisRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
     answers: Dict[str, str] = Field(default_factory=dict)
@@ -68,7 +54,6 @@ class TaskAnalysisRequest(BaseModel):
 class TaskSuggestion(BaseModel):
     title: str
     description: str
-    todo_type: str
     start_date: Optional[str] = None
     expected_duration_days: int = 0
     expected_duration_hours: int = 0

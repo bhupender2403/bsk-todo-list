@@ -18,16 +18,11 @@ def setup_function():
 
 def test_todo_lifecycle():
     with TestClient(app) as client:
-        created_type = client.post("/api/todo-types", json={"name": "  Work  "})
-        assert created_type.status_code == 201
-        assert created_type.json()["name"] == "Work"
-
         created = client.post(
             "/api/todos",
             json={
                 "title": "  Ship the app  ",
                 "description": "Prepare and publish the release.",
-                "todo_type": "Work",
                 "start_time": "2026-08-10T09:00:00",
                 "end_time": "2026-08-10T17:00:00",
                 "expected_duration_minutes": 480,
@@ -37,7 +32,6 @@ def test_todo_lifecycle():
         todo = created.json()
         assert todo["title"] == "Ship the app"
         assert todo["description"] == "Prepare and publish the release."
-        assert todo["todo_type"] == "Work"
         assert todo["id"] > 0
         assert todo["expected_duration_minutes"] == 480
         assert todo["dependency_ids"] == []
@@ -97,25 +91,7 @@ def test_task_can_be_assigned_to_sprint():
         ).json()["sprint_id"] is None
 
 
-def test_new_type_is_reusable_and_can_be_created_with_todo():
-    with TestClient(app) as client:
-        assert [item["name"] for item in client.get("/api/todo-types").json()] == [
-            "General"
-        ]
-        client.post("/api/todo-types", json={"name": "Errands"})
-        names = [item["name"] for item in client.get("/api/todo-types").json()]
-        assert names == ["Errands", "General"]
-
-        response = client.post(
-            "/api/todos", json={"title": "Call someone", "todo_type": "Personal"}
-        )
-        assert response.status_code == 201
-        assert response.json()["todo_type"] == "Personal"
-        names = [item["name"] for item in client.get("/api/todo-types").json()]
-        assert names == ["Errands", "General", "Personal"]
-
-
-def test_existing_workspace_is_migrated_to_general_type():
+def test_existing_workspace_is_migrated_with_current_task_fields():
     Base.metadata.drop_all(bind=engine)
     with engine.begin() as connection:
         connection.execute(
@@ -131,12 +107,9 @@ def test_existing_workspace_is_migrated_to_general_type():
 
     with TestClient(app) as client:
         todos = client.get("/api/todos").json()
-        types = client.get("/api/todo-types").json()
 
     assert todos[0]["title"] == "Existing task"
     assert todos[0]["description"] == ""
-    assert todos[0]["todo_type"] == "General"
-    assert [item["name"] for item in types] == ["General"]
 
 
 def test_dependencies_and_cycles():
@@ -232,7 +205,6 @@ def test_task_analysis_accepts_clarification_answers(monkeypatch):
 def test_answered_optional_clarifications_make_task_ready(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with TestClient(app) as client:
-        client.post("/api/todo-types", json={"name": "Work"})
         response = client.post(
             "/api/task-analysis",
             json={
@@ -240,7 +212,6 @@ def test_answered_optional_clarifications_make_task_ready(monkeypatch):
                 "answers": {
                     "When should this task start? You can also say that it should remain pending.": "Keep it pending",
                     "How long do you expect this task to take?": "Not sure yet",
-                    "Which task type best describes this work?": "General",
                 },
             },
         )

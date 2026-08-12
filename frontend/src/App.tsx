@@ -8,12 +8,8 @@ type DetectedTask = { number: number; sourceText: string; answers: Record<string
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>([])
-  const [types, setTypes] = useState<string[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [selectedType, setSelectedType] = useState('General')
-  const [newType, setNewType] = useState('')
-  const [creatingType, setCreatingType] = useState(false)
   const [taskSprintId, setTaskSprintId] = useState('')
   const [taskAimId, setTaskAimId] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -59,10 +55,9 @@ export default function App() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    Promise.all([api.list(), api.listTypes(), api.taskAnalysisConfig(), api.listSprints(), api.listAims()])
-      .then(([items, todoTypes, analysisConfig, sprintItems, aimItems]) => {
+    Promise.all([api.list(), api.taskAnalysisConfig(), api.listSprints(), api.listAims()])
+      .then(([items, analysisConfig, sprintItems, aimItems]) => {
         setTodos(items)
-        setTypes(todoTypes.map((item) => item.name))
         setTaskAnalysisConfig(analysisConfig)
         setSprints(sprintItems)
         setAims(aimItems)
@@ -251,9 +246,6 @@ export default function App() {
     setSourceTaskNumber(task.number)
     setTitle(suggestion.title)
     setDescription(suggestion.description)
-    setSelectedType(suggestion.todo_type)
-    setCreatingType(false)
-    setNewType('')
     setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
     setTaskAimId('')
     setStartTime(suggestion.start_date ?? '')
@@ -342,15 +334,10 @@ export default function App() {
     if (!title.trim()) return
     setError('')
     try {
-      let typeName = selectedType
-      if (creatingType) {
-        typeName = newType
-      }
       const minutes = (Number(durationDays) || 0) * 1440 + (Number(durationHours) || 0) * 60
       const input = {
         title,
         description,
-        todo_type: typeName,
         sprint_id: taskSprintId ? Number(taskSprintId) : null,
         aim_id: taskAimId ? Number(taskAimId) : null,
         start_time: startTime ? `${startTime}T00:00:00` : null,
@@ -362,11 +349,6 @@ export default function App() {
       const todo = editingId === null
         ? await api.create(input)
         : await api.update(editingId, input)
-      if (creatingType) {
-        typeName = todo.todo_type
-        setTypes((current) => current.includes(typeName) ? current : [...current, typeName].sort((a, b) => a.localeCompare(b)))
-        setSelectedType(typeName)
-      }
       setTodos((current) => editingId === null
         ? [todo, ...current]
         : current.map((item) => item.id === todo.id ? todo : item))
@@ -376,8 +358,6 @@ export default function App() {
       setQuery('')
       setFilter('all')
       setAddModalOpen(false)
-      setCreatingType(false)
-      setNewType('')
       setTaskSprintId('')
       setTaskAimId('')
       setStartTime('')
@@ -401,9 +381,6 @@ export default function App() {
     setEditingId(null)
     setTitle('')
     setDescription('')
-    setSelectedType(types[0] ?? 'General')
-    setCreatingType(false)
-    setNewType('')
     setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
     setTaskAimId('')
     setStartTime('')
@@ -423,9 +400,6 @@ export default function App() {
     setEditingId(todo.id)
     setTitle(todo.title)
     setDescription(todo.description)
-    setSelectedType(todo.todo_type)
-    setCreatingType(false)
-    setNewType('')
     setTaskSprintId(todo.sprint_id === null ? '' : String(todo.sprint_id))
     setTaskAimId(todo.aim_id === null ? '' : String(todo.aim_id))
     setStartTime(todo.start_time?.slice(0, 10) ?? '')
@@ -464,7 +438,7 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
-  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'todo_type' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
     try {
       const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
@@ -618,7 +592,7 @@ export default function App() {
               <button draggable={selectedSprintId !== null || dashboardMode === 'aims'} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => { setDraggingTaskId(null); setSprintDropActive(false) }} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
-                  <small>#{todo.id} · {todo.todo_type} · {getTodoStatus(todo)}</small>
+                  <small>#{todo.id} · {getTodoStatus(todo)}</small>
                 </span>
                 {todo.completed && <span className="card-check">✓</span>}
               </button>
@@ -646,7 +620,7 @@ export default function App() {
                     <span>#{todo.id}</span>
                     <div className="aim-task-tooltip" role="tooltip">
                       <strong>{todo.title}</strong>
-                      <small>#{todo.id} · {todo.todo_type} · {status}</small>
+                      <small>#{todo.id} · {status}</small>
                       {todo.description && <p>{todo.description}</p>}
                       <dl>
                         <div><dt>Start</dt><dd>{formatDateTime(todo.start_time)}</dd></div>
@@ -692,7 +666,6 @@ export default function App() {
             <p className="created-date">Created {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(selectedTodo.created_at))}</p>
             <p className={selectedTodo.description ? 'task-description' : 'task-description empty'}>{selectedTodo.description || 'No description added.'}</p>
             <div className="detail-fields">
-              <label>Type<select value={selectedTodo.todo_type} onChange={(event) => updateTodo(selectedTodo, { todo_type: event.target.value })}>{types.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>
               <div><span>Sprint</span><strong>{sprints.find((sprint) => sprint.id === selectedTodo.sprint_id)?.name ?? 'None'}</strong></div>
               <div><span>Aim</span><strong>{aims.find((aim) => aim.id === selectedTodo.aim_id)?.name ?? 'None'}</strong></div>
               <label>Start date
@@ -732,20 +705,6 @@ export default function App() {
                 <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe this task…" maxLength={5000} rows={2} />
               </label>
               <div className="form-row identity-row">
-                <label>Type
-                  <div className="type-control">
-                    {creatingType ? (
-                      <input value={newType} onChange={(event) => setNewType(event.target.value)} placeholder="Enter a new type…" maxLength={60} />
-                    ) : (
-                      <select value={selectedType} onChange={(event) => setSelectedType(event.target.value)}>
-                        {types.map((item) => <option value={item} key={item}>{item}</option>)}
-                      </select>
-                    )}
-                    <button type="button" onClick={() => { setCreatingType((current) => !current); setNewType('') }}>
-                      {creatingType ? 'Existing' : '+ New'}
-                    </button>
-                  </div>
-                </label>
                 <label>Sprint <small>Optional</small>
                   <select value={taskSprintId} onChange={(event) => setTaskSprintId(event.target.value)}>
                     <option value="">None</option>
@@ -784,7 +743,7 @@ export default function App() {
               </label>
               <div className="modal-actions">
                 <button type="button" onClick={() => setAddModalOpen(false)}>Cancel</button>
-                <button className="primary" type="submit" disabled={!title.trim() || (creatingType && !newType.trim())}>{editingId === null ? 'Add task' : 'Save changes'}</button>
+                <button className="primary" type="submit" disabled={!title.trim()}>{editingId === null ? 'Add task' : 'Save changes'}</button>
               </div>
             </form>
           </section>

@@ -22,7 +22,6 @@ class Todo(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(200), index=True)
     description: Mapped[str] = mapped_column(Text, default="")
-    todo_type: Mapped[str] = mapped_column(String(60), default="General", index=True)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
     sprint_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sprints.id"), nullable=True)
@@ -45,15 +44,6 @@ class Todo(Base):
     @property
     def dependency_ids(self) -> List[int]:
         return [todo.id for todo in self.dependencies]
-
-
-class TodoType(Base):
-    __tablename__ = "todo_types"
-    __table_args__ = (UniqueConstraint("name", name="uq_todo_types_name"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(60), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class Sprint(Base):

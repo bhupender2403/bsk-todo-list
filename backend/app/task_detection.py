@@ -11,7 +11,6 @@ from typing_extensions import TypedDict
 class DetectionState(TypedDict, total=False):
     text: str
     answers: Dict[str, str]
-    type_names: List[str]
     task_names: List[str]
     suggestion: Dict[str, object]
     clarification_questions: List[str]
@@ -42,13 +41,10 @@ def find_clarifications(state: DetectionState) -> DetectionState:
     questions = []
     start_question = "When should this task start? You can also say that it should remain pending."
     duration_question = "How long do you expect this task to take?"
-    type_question = "Which task type best describes this work?"
     if not suggestion.get("start_date") and start_question not in answers:
         questions.append(start_question)
     if not suggestion.get("expected_duration_days") and not suggestion.get("expected_duration_hours") and duration_question not in answers:
         questions.append(duration_question)
-    if suggestion.get("todo_type") == "General" and len(state.get("type_names", [])) > 1 and type_question not in answers:
-        questions.append(type_question)
     return {"clarification_questions": questions[:3]}
 
 
@@ -59,18 +55,16 @@ def _openai_extract(text: str, state: DetectionState) -> Optional[Dict[str, obje
         from openai import OpenAI
 
         prompt = """Extract a task from the user's text. Return JSON only with these keys:
-title, description, todo_type, start_date, expected_duration_days,
+title, description, start_date, expected_duration_days,
 expected_duration_hours, dependency_names. start_date must be YYYY-MM-DD
 or null. Durations must be non-negative numbers and
-dependency_names must be an array. Use only the supplied existing type/task names
+dependency_names must be an array. Use only the supplied existing task names
 when selecting relationships. Do not invent details.
 
-Existing types: {types}
 Existing tasks: {tasks}
 Today: {today}
 User text:
 {text}""".format(
-            types=", ".join(state.get("type_names", [])),
             tasks=", ".join(state.get("task_names", [])),
             today=date.today().isoformat(),
             text=text,
@@ -102,10 +96,6 @@ def _fallback_extract(text: str, state: DetectionState) -> Dict[str, object]:
 
     days = _number_before(r"days?", lowered)
     hours = _number_before(r"hours?|hrs?", lowered)
-    type_name = next(
-        (name for name in state.get("type_names", []) if name.lower() in lowered),
-        "General",
-    )
     matching_tasks = [
         name for name in state.get("task_names", []) if name.lower() in lowered
     ]
@@ -117,7 +107,6 @@ def _fallback_extract(text: str, state: DetectionState) -> Dict[str, object]:
     return {
         "title": title,
         "description": clean,
-        "todo_type": type_name,
         "start_date": start_date,
         "expected_duration_days": days,
         "expected_duration_hours": hours,
@@ -131,17 +120,12 @@ def _number_before(unit_pattern: str, text: str) -> int:
 
 
 def _normalize(value: Dict[str, object], state: DetectionState) -> Dict[str, object]:
-    types = state.get("type_names", [])
     tasks = state.get("task_names", [])
-    todo_type = str(value.get("todo_type") or "General")
-    if todo_type not in types:
-        todo_type = "General"
     raw_dependencies = value.get("dependency_names") or []
     dependencies = [name for name in raw_dependencies if name in tasks]
     return {
         "title": str(value.get("title") or "New task")[:200],
         "description": str(value.get("description") or "")[:5000],
-        "todo_type": todo_type,
         "start_date": value.get("start_date"),
         "expected_duration_days": max(0, int(value.get("expected_duration_days") or 0)),
         "expected_duration_hours": max(0, int(value.get("expected_duration_hours") or 0)),
