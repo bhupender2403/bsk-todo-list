@@ -251,14 +251,9 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .workspace-hours { position: relative; width: 100%; height: 56px; border-bottom: 1px solid #dfe3dc; background: #f4f6f1; }
 .workspace-hours span { position: absolute; bottom: 9px; color: #778078; font-size: 8px; transform: translateX(-50%); white-space: nowrap; }
 .workspace-hours span::after { content: ''; position: absolute; top: 15px; left: 50%; width: 1px; height: 7px; background: #aeb7ad; }
-.workspace-task-row { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid #e5e8e2; }
-.workspace-task-row:last-child { border-bottom: 0; }
-.workspace-task-label { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid #e8ebe5; background: #fafbf8; }
-.workspace-task-label b { color: #7d887f; font-size: 9px; }
-.workspace-task-label strong { min-width: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.workspace-task-label small { margin-left: auto; color: #969d97; font-size: 8px; }
 .workspace-time-track { position: relative; min-height: 72px; background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / 24 - 1px), #e6e9e3 calc(100% / 24 - 1px), #e6e9e3 calc(100% / 24)); }
-.workspace-todo-block { position: absolute; top: 14px; min-width: 28px; height: 43px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; overflow: hidden; padding: 5px 10px; border: 1px solid #839b87; border-radius: 7px; background: #dfeadf; color: #405346; box-shadow: 0 3px 9px rgba(58,75,61,.12); cursor: grab; }
+.workspace-shared-track { border-top: 0; transition: height .18s ease; }
+.workspace-todo-block { position: absolute; min-width: 28px; height: 43px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; overflow: hidden; padding: 5px 10px; border: 1px solid #839b87; border-radius: 7px; background: #dfeadf; color: #405346; box-shadow: 0 3px 9px rgba(58,75,61,.12); cursor: grab; }
 .workspace-todo-block:active { cursor: grabbing; }
 .workspace-todo-block b { font-size: 8px; }
 .workspace-todo-block > span:not(.resize-handle) { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
@@ -269,11 +264,17 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .workspace-planner-empty { grid-column: 1 / -1; padding: 65px 20px; color: #929991; text-align: center; font-size: 11px; }
 .workspace-unscheduled { margin-top: 14px; }
 .workspace-unscheduled h3 { margin: 0 0 7px; color: #7f8780; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
-.workspace-unscheduled > div { display: flex; flex-wrap: wrap; gap: 7px; }
-.workspace-unscheduled > div > div { display: grid; grid-template-columns: auto 1fr; gap: 2px 7px; min-width: 180px; padding: 8px 10px; border: 1px solid #dce1da; border-radius: 8px; background: #f4f6f1; cursor: grab; }
-.workspace-unscheduled b { grid-row: span 2; color: #718075; font-size: 9px; }
-.workspace-unscheduled span { font-size: 10px; }
-.workspace-unscheduled small { color: #909791; font-size: 8px; }
+.workspace-pending-rows { display: grid; gap: 7px; }
+.workspace-pending-row { min-width: 0; display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 9px; align-items: stretch; }
+.workspace-pending-task { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 7px; align-content: center; padding: 8px 10px; border: 1px solid #dce1da; border-radius: 8px; background: #fafbf8; }
+.workspace-pending-task b { grid-row: span 2; color: #718075; font-size: 9px; }
+.workspace-pending-task strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-pending-task small { color: #909791; font-size: 8px; }
+.workspace-pending-items { min-width: 0; display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; }
+.workspace-pending-items > div { flex: 0 0 180px; display: grid; grid-template-columns: auto 1fr; gap: 2px 7px; padding: 8px 10px; border: 1px solid #dce1da; border-radius: 8px; background: #f4f6f1; cursor: grab; }
+.workspace-pending-items b { grid-row: span 2; color: #718075; font-size: 9px; }
+.workspace-pending-items span { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-pending-items small { color: #909791; font-size: 8px; }
 .aim-dashboard-toolbar { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .aim-search { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #d9ddd5; border-radius: 10px; background: rgba(255,255,255,.96); color: #8b928b; box-shadow: 0 5px 14px rgba(47,57,49,.06); }
 .aim-dashboard-toolbar > .header-add-task { flex: 0 0 auto; height: 38px; }

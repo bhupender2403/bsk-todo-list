@@ -8,7 +8,11 @@ const SNAP_MINUTES = 15
 export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Props) {
   const picked = todos.filter((todo) => todo.is_picked)
   const today = localDateKey(new Date())
-  const unscheduled = picked.flatMap((todo) => todo.todo_items.filter((item) => item.worked_on_start?.slice(0, 10) !== today).map((item) => ({ todo, item })))
+  const scheduled = assignLanes(picked.flatMap((todo) => todo.todo_items
+    .filter((item) => item.worked_on_start?.slice(0, 10) === today)
+    .map((item) => ({ todo, item, start: minutesOfDay(item.worked_on_start!), duration: item.worked_on_duration_minutes ?? 60 }))))
+  const pending = picked.map((todo) => ({ todo, items: todo.todo_items.filter((item) => item.worked_on_start?.slice(0, 10) !== today) })).filter(({ items }) => items.length > 0)
+  const intervals = (exceptId?: number) => scheduled.filter(({ item }) => item.id !== exceptId).map(({ start, duration }) => ({ start, end: start + duration }))
 
   async function saveItem(task: Todo, itemId: number, changes: Partial<TodoItemInput>) {
     try {
@@ -21,16 +25,18 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     } catch (reason) { onError(reason) }
   }
 
-  function place(event: DragEvent<HTMLDivElement>, task: Todo) {
+  function place(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
     const itemId = Number(event.dataTransfer.getData('text/todo-item-id'))
     const sourceTask = todos.find((todo) => todo.todo_items.some((item) => item.id === itemId))
     const item = sourceTask?.todo_items.find((value) => value.id === itemId)
-    if (!item || sourceTask?.id !== task.id) return
+    if (!item || !sourceTask) return
     const rect = event.currentTarget.getBoundingClientRect()
-    const minutes = snap(((event.clientX - rect.left) / rect.width) * DAY_MINUTES)
-    const duration = item.worked_on_duration_minutes ?? 60
-    void saveItem(task, item.id, { worked_on_start: dateTime(today, Math.min(minutes, DAY_MINUTES - duration)), worked_on_duration_minutes: duration })
+    const duration = Math.min(item.worked_on_duration_minutes ?? 60, DAY_MINUTES)
+    const desired = Math.min(snap(((event.clientX - rect.left) / rect.width) * DAY_MINUTES), DAY_MINUTES - duration)
+    const minutes = nearestAvailable(desired, duration, intervals(item.id))
+    if (minutes === null) { onError(new Error('There is no free space on today’s timeline for this todo.')); return }
+    void saveItem(sourceTask, item.id, { worked_on_start: dateTime(today, minutes), worked_on_duration_minutes: duration })
   }
 
   function resize(event: ReactPointerEvent<HTMLSpanElement>, task: Todo, item: TodoItem, edge: 'start' | 'end') {
@@ -39,18 +45,15 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     if (!track || !item.worked_on_start) return
     const originalStart = minutesOfDay(item.worked_on_start)
     const originalDuration = item.worked_on_duration_minutes ?? 60
+    const occupied = intervals(item.id)
     const startX = event.clientX
     const move = (pointer: PointerEvent) => {
       const delta = snap(((pointer.clientX - startX) / track.getBoundingClientRect().width) * DAY_MINUTES)
-      const nextStart = edge === 'start' ? Math.max(0, Math.min(originalStart + delta, originalStart + originalDuration - SNAP_MINUTES)) : originalStart
-      const nextDuration = edge === 'start' ? originalDuration + originalStart - nextStart : Math.max(SNAP_MINUTES, Math.min(DAY_MINUTES - originalStart, originalDuration + delta))
-      track.style.setProperty('--preview-start', String(nextStart))
-      track.style.setProperty('--preview-duration', String(nextDuration))
+      resizeValues(edge, originalStart, originalDuration, delta, occupied)
     }
     const stop = (pointer: PointerEvent) => {
       const delta = snap(((pointer.clientX - startX) / track.getBoundingClientRect().width) * DAY_MINUTES)
-      const nextStart = edge === 'start' ? Math.max(0, Math.min(originalStart + delta, originalStart + originalDuration - SNAP_MINUTES)) : originalStart
-      const nextDuration = edge === 'start' ? originalDuration + originalStart - nextStart : Math.max(SNAP_MINUTES, Math.min(DAY_MINUTES - originalStart, originalDuration + delta))
+      const [nextStart, nextDuration] = resizeValues(edge, originalStart, originalDuration, delta, occupied)
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop)
       void saveItem(task, item.id, { worked_on_start: dateTime(today, nextStart), worked_on_duration_minutes: nextDuration })
     }
@@ -62,21 +65,14 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     <div className="workspace-planner-scroll">
       <div className="workspace-planner-grid">
         <div className="workspace-hours">{Array.from({ length: 25 }, (_, hour) => <span style={{ left: `${(hour / 24) * 100}%` }} key={hour}>{hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour === 24 ? '12 AM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>)}</div>
-        {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : picked.map((task) => <div className="workspace-task-row" key={task.id}>
-          <div className="workspace-task-label"><b>#{task.id}</b><strong>{task.title}</strong><small>{task.todo_items.length} todo items</small></div>
-          <div className="workspace-time-track" onDragOver={(event) => event.preventDefault()} onDrop={(event) => place(event, task)}>
-            {task.todo_items.filter((item) => item.worked_on_start?.slice(0, 10) === today).map((item) => {
-              const start = minutesOfDay(item.worked_on_start!)
-              const duration = item.worked_on_duration_minutes ?? 60
-              return <div className="workspace-todo-block" draggable onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} style={{ left: `${start / DAY_MINUTES * 100}%`, width: `${duration / DAY_MINUTES * 100}%` }} title={`$${item.id} ${item.name} · worked on ${formatMinutes(duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
-                <span className="resize-handle start" onPointerDown={(event) => resize(event, task, item, 'start')} /><b>${item.id}</b><span>{item.name}</span><small>{formatMinutes(duration)}</small><span className="resize-handle end" onPointerDown={(event) => resize(event, task, item, 'end')} />
-              </div>
-            })}
-          </div>
-        </div>)}
+        {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : <div className="workspace-time-track workspace-shared-track" style={{ height: `${Math.max(72, scheduled.reduce((max, entry) => Math.max(max, entry.lane + 1), 1) * 51 + 18)}px` }} onDragOver={(event) => event.preventDefault()} onDrop={place}>
+          {scheduled.map(({ todo, item, start, duration, lane }) => <div className="workspace-todo-block" draggable onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} style={{ left: `${start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
+            <span className="resize-handle start" onPointerDown={(event) => resize(event, todo, item, 'start')} /><b>#{todo.id} · ${item.id}</b><span>{item.name}</span><small>{formatMinutes(duration)}</small><span className="resize-handle end" onPointerDown={(event) => resize(event, todo, item, 'end')} />
+          </div>)}
+        </div>}
       </div>
     </div>
-    {unscheduled.length > 0 && <section className="workspace-unscheduled"><h3>Todo items not worked on today</h3><div>{unscheduled.map(({ todo, item }) => <div draggable onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} key={item.id}><b>${item.id}</b><span>{item.name}</span><small>#{todo.id} · estimated {formatMinutes(item.estimated_duration_minutes)}</small></div>)}</div></section>}
+    {pending.length > 0 && <section className="workspace-unscheduled"><h3>Todo items not worked on today</h3><div className="workspace-pending-rows">{pending.map(({ todo, items }) => <div className="workspace-pending-row" key={todo.id}><div className="workspace-pending-task"><b>#{todo.id}</b><strong>{todo.title}</strong><small>{items.length} pending</small></div><div className="workspace-pending-items">{items.map((item) => <div draggable onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} key={item.id}><b>${item.id}</b><span>{item.name}</span><small>estimated {formatMinutes(item.estimated_duration_minutes)}</small></div>)}</div></div>)}</div></section>}
   </section>
 }
 
@@ -85,3 +81,33 @@ function localDateKey(value: Date) { return `${value.getFullYear()}-${String(val
 function dateTime(date: string, minutes: number) { return `${date}T${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00` }
 function minutesOfDay(value: string) { const date = new Date(value); return date.getHours() * 60 + date.getMinutes() }
 function formatMinutes(value: number) { const hours = Math.floor(value / 60); const minutes = value % 60; return [hours && `${hours}h`, minutes && `${minutes}m`].filter(Boolean).join(' ') || '15m' }
+
+type Interval = { start: number; end: number }
+function overlaps(start: number, duration: number, occupied: Interval[]) { return occupied.some((interval) => start < interval.end && start + duration > interval.start) }
+function nearestAvailable(desired: number, duration: number, occupied: Interval[]) {
+  for (let distance = 0; distance <= DAY_MINUTES; distance += SNAP_MINUTES) {
+    const candidates = distance === 0 ? [desired] : [desired + distance, desired - distance]
+    for (const start of candidates) if (start >= 0 && start + duration <= DAY_MINUTES && !overlaps(start, duration, occupied)) return start
+  }
+  return null
+}
+function resizeValues(edge: 'start' | 'end', start: number, duration: number, delta: number, occupied: Interval[]): [number, number] {
+  const end = start + duration
+  if (edge === 'start') {
+    const previousEnd = occupied.filter((interval) => interval.end <= end).reduce((latest, interval) => Math.max(latest, interval.end), 0)
+    const nextStart = Math.max(previousEnd, Math.min(start + delta, end - SNAP_MINUTES))
+    return [nextStart, end - nextStart]
+  }
+  const nextStart = occupied.filter((interval) => interval.start >= start).reduce((earliest, interval) => Math.min(earliest, interval.start), DAY_MINUTES)
+  const nextEnd = Math.min(nextStart, Math.max(start + SNAP_MINUTES, end + delta))
+  return [start, nextEnd - start]
+}
+function assignLanes<T extends { start: number; duration: number }>(entries: T[]) {
+  const laneEnds: number[] = []
+  return [...entries].sort((a, b) => a.start - b.start).map((entry) => {
+    let lane = laneEnds.findIndex((end) => end <= entry.start)
+    if (lane < 0) lane = laneEnds.length
+    laneEnds[lane] = entry.start + entry.duration
+    return { ...entry, lane }
+  })
+}
