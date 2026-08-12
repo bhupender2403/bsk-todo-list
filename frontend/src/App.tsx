@@ -134,6 +134,17 @@ export default function App() {
     return todos.flatMap((todo) => todo.todo_items.map((item) => ({ item, todo })))
       .filter(({ item }) => String(item.id).includes(todoItemReferenceQuery)).slice(0, 8)
   }, [todos, todoItemReferenceQuery])
+  const chatRelated = useMemo(() => {
+    const text = `${chatMessages.map((message) => message.text).join(' ')} ${chatInput}`
+    const taskIds = new Set(Array.from(text.matchAll(/#(\d+)/g), (match) => Number(match[1])))
+    const aimIds = new Set(Array.from(text.matchAll(/@(\d+)/g), (match) => Number(match[1])))
+    const itemIds = new Set(Array.from(text.matchAll(/\$(\d+)/g), (match) => Number(match[1])))
+    return {
+      tasks: todos.filter((todo) => taskIds.has(todo.id)),
+      aims: aims.filter((aim) => aimIds.has(aim.id)),
+      items: todos.flatMap((todo) => todo.todo_items.map((item) => ({ item, todo }))).filter(({ item }) => itemIds.has(item.id)),
+    }
+  }, [aims, chatInput, chatMessages, todos])
 
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
   const statusCounts = useMemo(() => todos.reduce(
@@ -565,10 +576,10 @@ export default function App() {
       <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <header className="app-header">
           <div>
-            <h1>{dashboardMode === 'tasks' ? 'Task dependencies' : 'Aims'}</h1>
+            <h1>{chatOpen ? 'Task assistant' : dashboardMode === 'tasks' ? 'Task dependencies' : 'Aims'}</h1>
           </div>
           <div className="header-actions">
-            <button className="view-toggle" onClick={() => setDashboardMode((current) => current === 'tasks' ? 'aims' : 'tasks')}>{dashboardMode === 'tasks' ? 'Aims' : 'Tasks'}</button>
+            <button className="view-toggle" onClick={() => { setChatOpen(false); setDashboardMode((current) => current === 'tasks' ? 'aims' : 'tasks') }}>{dashboardMode === 'tasks' ? 'Aims' : 'Tasks'}</button>
             {dashboardMode === 'aims' && <button className="header-add-task" onClick={() => openAimModal()}><span aria-hidden="true">＋</span> Add aim</button>}
             <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
@@ -594,10 +605,10 @@ export default function App() {
               </div>
             </div>
             <div className="sprint-list">
-              <button className={`sprint-card ${selectedSprintId === null ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(null); setDashboardMode('tasks') }}>
+              <button className={`sprint-card ${selectedSprintId === null ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(null); setDashboardMode('tasks'); setChatOpen(false) }}>
                 <strong>All tasks</strong><small>Full timeline</small>
               </button>
-              {sprints.map((sprint) => <button className={`sprint-card ${selectedSprintId === sprint.id ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(sprint.id); setSelectedId(null); setDashboardMode('tasks') }} key={sprint.id}>
+              {sprints.map((sprint) => <button className={`sprint-card ${selectedSprintId === sprint.id ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(sprint.id); setSelectedId(null); setDashboardMode('tasks'); setChatOpen(false) }} key={sprint.id}>
                 <strong>{sprint.name}</strong><small>{formatDate(sprint.created_at)} – {formatDate(sprint.end_date)}</small>
               </button>)}
             </div>
@@ -806,7 +817,8 @@ export default function App() {
         </div>
       )}
 
-      {chatOpen && <aside className="chat-drawer" aria-label="Task detection chat">
+      {chatOpen && <section className={`chat-workspace-overlay ${sidebarOpen ? '' : 'sidebar-closed'}`}>
+      <aside className="chat-drawer" aria-label="Task detection chat">
         <div className="chat-heading">
           <div><p className="eyebrow">Task assistant</p><h2>Chat</h2>
             <span className={`assistant-config ${taskAnalysisConfig?.openai_configured ? 'configured' : 'local'}`}>
@@ -882,7 +894,19 @@ export default function App() {
             <button className="send-chat" type="submit" disabled={analyzing || !chatInput.trim()} aria-label="Send message">↑</button>
           </div>
         </form>
-      </aside>}
+      </aside>
+      <section className="chat-related" aria-label="Content related to chat">
+        <div className="chat-related-heading"><p className="eyebrow">Conversation context</p><h2>Related</h2></div>
+        {readyDetectedTasks.length === 0 && chatRelated.tasks.length === 0 && chatRelated.aims.length === 0 && chatRelated.items.length === 0 ? (
+          <div className="chat-related-empty"><span>⌁</span><h3>Related content appears here</h3><p>Mention a task with #, an aim with @, or a todo item with $.</p></div>
+        ) : <div className="chat-related-content">
+          {readyDetectedTasks.length > 0 && <section><h3>Ready to create</h3>{readyDetectedTasks.map((task) => <button className="related-card detected" onClick={() => openDetectedTask(task)} key={task.number}><b>＋ {task.number}</b><strong>{task.analysis.suggestion.title}</strong><small>Review detected task</small></button>)}</section>}
+          {chatRelated.tasks.length > 0 && <section><h3>Tasks</h3>{chatRelated.tasks.map((todo) => <button className="related-card" onClick={() => openTaskDetail(todo.id)} key={todo.id}><b>#{todo.id}</b><strong>{todo.title}</strong><small>{getTodoStatus(todo)} · {formatDuration(todo.expected_duration_minutes)}</small></button>)}</section>}
+          {chatRelated.aims.length > 0 && <section><h3>Aims</h3>{chatRelated.aims.map((aim) => <article className="related-card" key={aim.id}><b>@{aim.id}</b><strong>{aim.name}</strong><small>{todos.filter((todo) => todo.aim_id === aim.id).length} tasks</small></article>)}</section>}
+          {chatRelated.items.length > 0 && <section><h3>Todo items</h3>{chatRelated.items.map(({ item, todo }) => <button className="related-card" onClick={() => openTaskDetail(todo.id)} key={item.id}><b>${item.id}</b><strong>{item.name}</strong><small>#{todo.id} {todo.title} · {formatDuration(item.estimated_duration_minutes)}</small></button>)}</section>}
+        </div>}
+      </section>
+      </section>}
 
       {sprintModalOpen && <div className="modal-backdrop" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setSprintModalOpen(false)
