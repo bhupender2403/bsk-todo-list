@@ -1,4 +1,4 @@
-import { type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useState, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { api, type Todo, type TodoItem, type TodoItemInput } from './api'
 
 type Props = { todos: Todo[]; onTaskUpdated: (todo: Todo) => void; onError: (reason: unknown) => void }
@@ -6,6 +6,7 @@ const DAY_MINUTES = 1440
 const SNAP_MINUTES = 15
 
 export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Props) {
+  const [resizePreview, setResizePreview] = useState<{ itemId: number; start: number; duration: number } | null>(null)
   const picked = todos.filter((todo) => todo.is_picked)
   const today = localDateKey(new Date())
   const scheduled = assignLanes(picked.flatMap((todo) => todo.todo_items
@@ -49,12 +50,14 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     const startX = event.clientX
     const move = (pointer: PointerEvent) => {
       const delta = snap(((pointer.clientX - startX) / track.getBoundingClientRect().width) * DAY_MINUTES)
-      resizeValues(edge, originalStart, originalDuration, delta, occupied)
+      const [nextStart, nextDuration] = resizeValues(edge, originalStart, originalDuration, delta, occupied)
+      setResizePreview({ itemId: item.id, start: nextStart, duration: nextDuration })
     }
     const stop = (pointer: PointerEvent) => {
       const delta = snap(((pointer.clientX - startX) / track.getBoundingClientRect().width) * DAY_MINUTES)
       const [nextStart, nextDuration] = resizeValues(edge, originalStart, originalDuration, delta, occupied)
       window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop)
+      setResizePreview(null)
       void saveItem(task, item.id, { worked_on_start: dateTime(today, nextStart), worked_on_duration_minutes: nextDuration })
     }
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop)
@@ -66,9 +69,12 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
       <div className="workspace-planner-grid">
         <div className="workspace-hours">{Array.from({ length: 25 }, (_, hour) => <span style={{ left: `${(hour / 24) * 100}%` }} key={hour}>{hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour === 24 ? '12 AM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>)}</div>
         {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : <div className="workspace-time-track workspace-shared-track" style={{ height: `${Math.max(72, scheduled.reduce((max, entry) => Math.max(max, entry.lane + 1), 1) * 51 + 18)}px` }} onDragOver={(event) => event.preventDefault()} onDrop={place}>
-          {scheduled.map(({ todo, item, start, duration, lane }) => <div className="workspace-todo-block" draggable onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} style={{ left: `${start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
-            <span className="resize-handle start" onPointerDown={(event) => resize(event, todo, item, 'start')} /><b>#{todo.id} · ${item.id}</b><span>{item.name}</span><small>{formatMinutes(duration)}</small><span className="resize-handle end" onPointerDown={(event) => resize(event, todo, item, 'end')} />
-          </div>)}
+          {scheduled.map(({ todo, item, start, duration, lane }) => {
+            const displayed = resizePreview?.itemId === item.id ? resizePreview : { start, duration }
+            return <div className={`workspace-todo-block${resizePreview?.itemId === item.id ? ' resizing' : ''}`} draggable={!resizePreview} onDragStart={(event) => { event.dataTransfer.setData('text/todo-item-id', String(item.id)); event.dataTransfer.effectAllowed = 'move' }} style={{ left: `${displayed.start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${displayed.duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(displayed.duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
+              <span className="resize-handle start" onPointerDown={(event) => resize(event, todo, item, 'start')} /><b>#{todo.id} · ${item.id}</b><span>{item.name}</span><small>{formatMinutes(displayed.duration)}</small><span className="resize-handle end" onPointerDown={(event) => resize(event, todo, item, 'end')} />
+            </div>
+          })}
         </div>}
       </div>
     </div>
