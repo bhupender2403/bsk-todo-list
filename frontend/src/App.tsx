@@ -764,14 +764,14 @@ export default function App() {
             {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
               <p className="sidebar-empty">No matching tasks.</p>
             ) : visibleTodos.map((todo) => (
-              <button draggable={dashboardMode === 'aims'} className={`task-card ${todo.is_picked ? 'picked' : ''} ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => setDraggingTaskId(null)} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
+              <div role="button" tabIndex={0} draggable={dashboardMode === 'aims'} className={`task-card ${todo.is_picked ? 'picked' : ''} ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => setDraggingTaskId(null)} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedId(todo.id) } }} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
                   <small>#{todo.id} · {getTodoStatus(todo)}</small>
                 </span>
-                {todo.is_picked && <span className="picked-mark" title="Picked task">◆</span>}
+                <button className={`sidebar-pick ${todo.is_picked ? 'picked' : ''}`} onClick={(event) => { event.stopPropagation(); void togglePicked(todo) }} disabled={getTodoStatus(todo) === 'completed'} title={todo.is_picked ? 'Unpick task' : 'Pick task'} aria-label={todo.is_picked ? `Unpick ${todo.title}` : `Pick ${todo.title}`}>{todo.is_picked ? '◆' : '◇'}</button>
                 {todo.completed && <span className="card-check">✓</span>}
-              </button>
+              </div>
             ))}
           </div>
         </aside>
@@ -870,7 +870,6 @@ export default function App() {
               ))}</ul>}
             </section>
             <div className="detail-actions">
-              <button className={selectedTodo.is_picked ? 'picked-action' : ''} onClick={() => togglePicked(selectedTodo)}>{selectedTodo.is_picked ? 'Unpick task' : 'Pick task'}</button>
               <button className="primary" onClick={() => advanceTask(selectedTodo)}>{getTodoStatus(selectedTodo) === 'completed' ? 'Reopen task' : getTodoStatus(selectedTodo) === 'running' ? 'Finish work' : 'Start work'}</button>
               <button onClick={() => openEditModal(selectedTodo)}>Edit details</button>
               <button className="danger" onClick={() => deleteTodo(selectedTodo)}>Delete</button>
