@@ -235,6 +235,7 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .task-dashboard-toolbar > div { display: grid; gap: 1px; }
 .task-dashboard-toolbar .eyebrow { margin: 0; font-size: 8px; }
 .task-dashboard-toolbar strong { color: #4a544c; font-size: 12px; }
+.workspace-dashboard { min-height: calc(100% - 20px); border: 1px solid #e0e3dc; border-radius: 16px; background: rgba(255,255,255,.45); }
 .aim-dashboard-toolbar { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .aim-search { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #d9ddd5; border-radius: 10px; background: rgba(255,255,255,.96); color: #8b928b; box-shadow: 0 5px 14px rgba(47,57,49,.06); }
 .aim-dashboard-toolbar > .header-add-task { flex: 0 0 auto; height: 38px; }

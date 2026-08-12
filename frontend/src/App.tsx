@@ -39,7 +39,7 @@ export default function App() {
   const [aimModalOpen, setAimModalOpen] = useState(false)
   const [aimName, setAimName] = useState('')
   const [aimDescription, setAimDescription] = useState('')
-  const [dashboardMode, setDashboardMode] = useState<'tasks' | 'aims'>('tasks')
+  const [dashboardMode, setDashboardMode] = useState<'tasks' | 'aims' | 'workspace'>('tasks')
   const [aimQuery, setAimQuery] = useState('')
   const [loadedAimId, setLoadedAimId] = useState<number | null>(null)
   const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
@@ -713,10 +713,10 @@ export default function App() {
       <section className={`app-shell ${sidebarOpen ? '' : 'sidebar-collapsed'}`}>
         <header className="app-header">
           <div>
-            <h1>{chatOpen ? 'Task assistant' : dashboardMode === 'tasks' ? 'Task dependencies' : 'Aims'}</h1>
+            <h1>{chatOpen ? 'Task assistant' : dashboardMode === 'tasks' ? 'Task dependencies' : dashboardMode === 'aims' ? 'Aims' : 'Workspace'}</h1>
           </div>
           <div className="header-actions">
-            <div className="view-switcher" aria-label="Dashboard view"><button className={dashboardMode === 'tasks' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('tasks') }}>Tasks</button><button className={dashboardMode === 'aims' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('aims') }}>Aims</button></div>
+            <div className="view-switcher" aria-label="Dashboard view"><button className={dashboardMode === 'tasks' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('tasks') }}>Tasks</button><button className={dashboardMode === 'aims' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('aims') }}>Aims</button><button className={dashboardMode === 'workspace' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('workspace') }}>Workspace</button></div>
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
               <span aria-hidden="true">◌</span> Chat
             </button>
@@ -774,7 +774,7 @@ export default function App() {
           {dashboardMode === 'tasks' ? <>
             <div className="task-dashboard-toolbar"><div><p className="eyebrow">Schedule</p><strong>Task timeline</strong></div><button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button></div>
             <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} />
-          </> : <section className="aim-dashboard">
+          </> : dashboardMode === 'aims' ? <section className="aim-dashboard">
             <div className="aim-dashboard-toolbar"><label className="aim-search"><span aria-hidden="true">⌕</span><input value={aimQuery} onChange={(event) => setAimQuery(event.target.value)} placeholder="Search aims by name, description, or @ID…" aria-label="Search aims" />{aimQuery && <button onClick={() => setAimQuery('')} aria-label="Clear aim search">×</button>}</label><button className="header-add-task" onClick={() => openAimModal()}><span aria-hidden="true">＋</span> Add aim</button></div>
             {aims.length === 0 ? <div className="aim-empty"><h2>No aims yet</h2><p>Create an aim, then drag tasks onto it.</p></div> : visibleAims.length === 0 ? <div className="aim-empty"><h2>No matching aims</h2><p>Try a different search.</p></div> : visibleAims.map((aim) => {
               const aimTasks = todos.filter((todo) => todo.aim_id === aim.id)
@@ -801,7 +801,7 @@ export default function App() {
                 })}</div>
               </article>
             })}
-          </section>}
+          </section> : <section className="workspace-dashboard" aria-label="Workspace dashboard" />}
         </section>
 
         {!chatOpen && <aside className="risk-sidebar" aria-label="Tasks at risk">
