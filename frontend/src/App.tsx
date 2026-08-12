@@ -1,5 +1,5 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { api, getTodoStatus, type Aim, type Sprint, type TaskAnalysis, type TaskAnalysisConfig, type Todo } from './api'
+import { api, getTodoStatus, type Aim, type Sprint, type TaskAnalysis, type TaskAnalysisConfig, type Todo, type TodoItemInput } from './api'
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
@@ -18,6 +18,9 @@ export default function App() {
   const [durationHours, setDurationHours] = useState('')
   const [dependencyQuery, setDependencyQuery] = useState('')
   const [dependencyIds, setDependencyIds] = useState<number[]>([])
+  const [taskItems, setTaskItems] = useState<TodoItemInput[]>([])
+  const [todoItemName, setTodoItemName] = useState('')
+  const [todoItemHours, setTodoItemHours] = useState('')
   const [chatOpen, setChatOpen] = useState(false)
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -125,6 +128,12 @@ export default function App() {
     if (aimReferenceQuery === null) return []
     return aims.filter((aim) => String(aim.id).includes(aimReferenceQuery)).slice(0, 8)
   }, [aims, aimReferenceQuery])
+  const todoItemReferenceQuery = chatInput.match(/(?:^|\s)\$(\d*)$/)?.[1] ?? null
+  const todoItemReferenceMatches = useMemo(() => {
+    if (todoItemReferenceQuery === null) return []
+    return todos.flatMap((todo) => todo.todo_items.map((item) => ({ item, todo })))
+      .filter(({ item }) => String(item.id).includes(todoItemReferenceQuery)).slice(0, 8)
+  }, [todos, todoItemReferenceQuery])
 
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
   const statusCounts = useMemo(() => todos.reduce(
@@ -257,6 +266,9 @@ export default function App() {
       const match = todos.find((todo) => todo.title.toLocaleLowerCase() === name.toLocaleLowerCase())
       return match ? [match.id] : []
     }))
+    setTaskItems([])
+    setTodoItemName('')
+    setTodoItemHours('')
     setAddModalOpen(true)
   }
 
@@ -268,6 +280,22 @@ export default function App() {
   function insertAimReference(aim: Aim) {
     setChatInput((current) => current.replace(/@\d*$/, `@${aim.id} ${aim.name}`))
     requestAnimationFrame(() => chatInputRef.current?.focus())
+  }
+
+  function insertTodoItemReference(item: { id: number; name: string }) {
+    setChatInput((current) => current.replace(/\$\d*$/, `$${item.id} ${item.name}`))
+    requestAnimationFrame(() => chatInputRef.current?.focus())
+  }
+
+  function addTodoItem() {
+    const name = todoItemName.trim()
+    if (!name) return
+    setTaskItems((current) => [...current, {
+      name,
+      estimated_duration_minutes: Math.max(0, Number(todoItemHours) || 0) * 60,
+    }])
+    setTodoItemName('')
+    setTodoItemHours('')
   }
 
   function clearChat() {
@@ -345,6 +373,7 @@ export default function App() {
         expected_duration_minutes: minutes || null,
         dependency_ids: dependencyIds,
         is_running: editingId === null ? false : (todos.find((item) => item.id === editingId)?.is_running ?? false),
+        todo_items: taskItems,
       }
       const todo = editingId === null
         ? await api.create(input)
@@ -366,6 +395,9 @@ export default function App() {
       setDurationHours('')
       setDependencyQuery('')
       setDependencyIds([])
+      setTaskItems([])
+      setTodoItemName('')
+      setTodoItemHours('')
       setEditingId(null)
       if (sourceTaskNumber !== null) {
         setDetectedTasks((current) => current.filter((task) => task.number !== sourceTaskNumber))
@@ -389,6 +421,9 @@ export default function App() {
     setDurationHours('')
     setDependencyQuery('')
     setDependencyIds([])
+    setTaskItems([])
+    setTodoItemName('')
+    setTodoItemHours('')
     setSourceTaskNumber(null)
     setAddModalOpen(true)
   }
@@ -408,6 +443,9 @@ export default function App() {
     setDurationHours(duration ? String(Math.floor((duration % 1440) / 60)) : '')
     setDependencyQuery('')
     setDependencyIds(todo.dependency_ids)
+    setTaskItems(todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })))
+    setTodoItemName('')
+    setTodoItemHours('')
     setDetailModalOpen(false)
     setAddModalOpen(true)
   }
@@ -438,7 +476,7 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
-  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) {
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) {
     try {
       const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
@@ -678,6 +716,12 @@ export default function App() {
               <div><span>Expected duration</span><strong>{formatDuration(selectedTodo.expected_duration_minutes)}</strong></div>
               <div className="dependency-summary"><span>Dependencies</span><strong>{selectedTodo.dependency_ids.length ? selectedTodo.dependency_ids.map(taskName).join(', ') : 'None'}</strong></div>
             </div>
+            <section className="todo-item-detail">
+              <div><span>Todo items</span><strong>{selectedTodo.todo_items.length}</strong></div>
+              {selectedTodo.todo_items.length === 0 ? <p>No todo items assigned.</p> : <ul>{selectedTodo.todo_items.map((item) => (
+                <li key={item.id}><b>${item.id}</b><span>{item.name}</span><small>{formatDuration(item.estimated_duration_minutes)}</small></li>
+              ))}</ul>}
+            </section>
             <div className="detail-actions">
               <button className="primary" onClick={() => advanceTask(selectedTodo)}>{getTodoStatus(selectedTodo) === 'completed' ? 'Reopen task' : getTodoStatus(selectedTodo) === 'running' ? 'Finish work' : 'Start work'}</button>
               <button onClick={() => openEditModal(selectedTodo)}>Edit details</button>
@@ -741,6 +785,18 @@ export default function App() {
                 </div>
                 {dependencyIds.length > 0 && <div className="dependency-chips">{dependencyIds.map((id) => <button type="button" onClick={() => setDependencyIds((current) => current.filter((item) => item !== id))} key={id}>{taskName(id)} ×</button>)}</div>}
               </label>
+              <fieldset className="todo-items-editor">
+                <legend>Todo items <small>Optional steps within this task</small></legend>
+                <div className="todo-item-control">
+                  <input value={todoItemName} onChange={(event) => setTodoItemName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addTodoItem() } }} placeholder="Todo item name…" maxLength={200} />
+                  <label><input type="number" min="0" step="0.25" value={todoItemHours} onChange={(event) => setTodoItemHours(event.target.value)} placeholder="0" /> hours</label>
+                  <button type="button" onClick={addTodoItem} disabled={!todoItemName.trim()}>Add</button>
+                </div>
+                {taskItems.length > 0 && <div className="todo-item-drafts">{taskItems.map((item, index) => <div key={item.id ?? `new-${index}`}>
+                  <b>{item.id ? `$${item.id}` : 'NEW'}</b><span>{item.name}</span><small>{formatDuration(item.estimated_duration_minutes)}</small>
+                  <button type="button" onClick={() => setTaskItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${item.name}`}>×</button>
+                </div>)}</div>}
+              </fieldset>
               <div className="modal-actions">
                 <button type="button" onClick={() => setAddModalOpen(false)}>Cancel</button>
                 <button className="primary" type="submit" disabled={!title.trim()}>{editingId === null ? 'Add task' : 'Save changes'}</button>
@@ -799,6 +855,11 @@ export default function App() {
             {aimReferenceMatches.length > 0 ? aimReferenceMatches.map((aim) => <button type="button" role="option" onClick={() => insertAimReference(aim)} key={aim.id}>
               <b>@{aim.id}</b><span>{aim.name}</span>
             </button>) : <p>No aim number matches @{aimReferenceQuery}</p>}
+          </div>}
+          {todoItemReferenceQuery !== null && <div className="task-reference-tooltip" role="listbox" aria-label="Todo item references">
+            {todoItemReferenceMatches.length > 0 ? todoItemReferenceMatches.map(({ item, todo }) => <button type="button" role="option" onClick={() => insertTodoItemReference(item)} key={item.id}>
+              <b>${item.id}</b><span>{item.name} · #{todo.id} {todo.title}</span>
+            </button>) : <p>No todo item matches ${todoItemReferenceQuery}</p>}
           </div>}
           {activeTaskNumber && <small>Answering about task <b>{activeTaskNumber}</b></small>}
           <div className="chat-composer-toolbar">

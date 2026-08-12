@@ -9,7 +9,7 @@ from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from .database import Base, WORKSPACE, engine, get_db
-from .models import Aim, Sprint, Todo
+from .models import Aim, Sprint, Todo, TodoItem
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
@@ -22,6 +22,7 @@ from .schemas import (
     AimResponse,
     TodoCreate,
     TodoResponse,
+    TodoItemResponse,
     TodoUpdate,
 )
 from .task_detection import task_detection_graph
@@ -85,6 +86,16 @@ def clean_title(title: str) -> str:
     if not cleaned:
         raise HTTPException(status_code=422, detail="Title cannot be blank")
     return cleaned
+
+
+def build_todo_items(items) -> List[TodoItem]:
+    return [
+        TodoItem(
+            name=clean_title(item.name),
+            estimated_duration_minutes=item.estimated_duration_minutes,
+        )
+        for item in items
+    ]
 
 
 def find_todo(todo_id: int, db: Session) -> Todo:
@@ -175,6 +186,11 @@ def list_todos(db: Session = Depends(get_db)) -> List[Todo]:
     return list(db.scalars(select(Todo).order_by(Todo.created_at.desc(), Todo.id.desc())))
 
 
+@app.get("/api/todo-items", response_model=List[TodoItemResponse])
+def list_todo_items(db: Session = Depends(get_db)) -> List[TodoItem]:
+    return list(db.scalars(select(TodoItem).order_by(TodoItem.id)))
+
+
 @app.post("/api/task-analysis", response_model=TaskAnalysisResponse)
 def analyze_task(payload: TaskAnalysisRequest, db: Session = Depends(get_db)):
     result = task_detection_graph.invoke(
@@ -254,6 +270,7 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
         completed=payload.end_time is not None,
         is_running=payload.is_running and payload.end_time is None,
         dependencies=dependencies,
+        todo_items=build_todo_items(payload.todo_items),
     )
     db.add(todo)
     db.commit()
@@ -266,6 +283,7 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
     todo = find_todo(todo_id, db)
     changes = payload.model_dump(exclude_unset=True)
     dependency_ids = changes.pop("dependency_ids", None)
+    todo_item_values = changes.pop("todo_items", None)
     if "title" in changes:
         if changes["title"] is None:
             raise HTTPException(status_code=422, detail="Title cannot be null")
@@ -300,6 +318,20 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
         new_dependencies = find_todos(dependency_ids, db)
     validate_dag(todo.id, new_dependencies, db)
     todo.dependencies = new_dependencies
+    if todo_item_values is not None:
+        existing = {item.id: item for item in todo.todo_items}
+        replacement = []
+        for value in todo_item_values:
+            item_id = value.get("id")
+            item = existing.get(item_id) if item_id is not None else None
+            if item_id is not None and item is None:
+                raise HTTPException(status_code=422, detail="Todo item does not belong to this task")
+            if item is None:
+                item = TodoItem()
+            item.name = clean_title(value["name"])
+            item.estimated_duration_minutes = value["estimated_duration_minutes"]
+            replacement.append(item)
+        todo.todo_items = replacement
     for field, value in changes.items():
         setattr(todo, field, value)
     db.commit()

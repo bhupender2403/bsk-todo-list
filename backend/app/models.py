@@ -40,10 +40,24 @@ class Todo(Base):
         primaryjoin=id == todo_dependencies.c.todo_id,
         secondaryjoin=id == todo_dependencies.c.depends_on_id,
     )
+    todo_items: Mapped[List["TodoItem"]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", order_by="TodoItem.id"
+    )
 
     @property
     def dependency_ids(self) -> List[int]:
         return [todo.id for todo in self.dependencies]
+
+
+class TodoItem(Base):
+    __tablename__ = "todo_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("todos.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    estimated_duration_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    task: Mapped["Todo"] = relationship(back_populates="todo_items")
 
 
 class Sprint(Base):

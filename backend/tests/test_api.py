@@ -26,6 +26,10 @@ def test_todo_lifecycle():
                 "start_time": "2026-08-10T09:00:00",
                 "end_time": "2026-08-10T17:00:00",
                 "expected_duration_minutes": 480,
+                "todo_items": [
+                    {"name": "Build package", "estimated_duration_minutes": 45},
+                    {"name": "Publish release", "estimated_duration_minutes": 30},
+                ],
             },
         )
         assert created.status_code == 201
@@ -37,6 +41,29 @@ def test_todo_lifecycle():
         assert todo["dependency_ids"] == []
         assert todo["is_running"] is False
         assert todo["completed"] is True
+        assert [item["name"] for item in todo["todo_items"]] == [
+            "Build package",
+            "Publish release",
+        ]
+        assert all(item["id"] > 0 for item in todo["todo_items"])
+        assert all(item["task_id"] == todo["id"] for item in todo["todo_items"])
+
+        first_item = todo["todo_items"][0]
+        changed_items = client.patch(
+            f"/api/todos/{todo['id']}",
+            json={
+                "todo_items": [
+                    {
+                        "id": first_item["id"],
+                        "name": "Build signed package",
+                        "estimated_duration_minutes": 60,
+                    }
+                ]
+            },
+        ).json()["todo_items"]
+        assert changed_items[0]["id"] == first_item["id"]
+        assert changed_items[0]["name"] == "Build signed package"
+        assert len(client.get("/api/todo-items").json()) == 1
 
         listed = client.get("/api/todos")
         assert listed.status_code == 200

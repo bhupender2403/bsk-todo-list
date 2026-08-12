@@ -4,6 +4,22 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class TodoItemInput(BaseModel):
+    id: Optional[int] = None
+    name: str = Field(min_length=1, max_length=200)
+    estimated_duration_minutes: int = Field(default=0, ge=0)
+
+
+class TodoItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    task_id: int
+    name: str
+    estimated_duration_minutes: int
+    created_at: datetime
+
+
 class TodoCreate(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=5000)
@@ -14,6 +30,7 @@ class TodoCreate(BaseModel):
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
     dependency_ids: List[int] = Field(default_factory=list)
     is_running: bool = False
+    todo_items: List[TodoItemInput] = Field(default_factory=list)
 
 
 class TodoUpdate(BaseModel):
@@ -27,6 +44,7 @@ class TodoUpdate(BaseModel):
     expected_duration_minutes: Optional[int] = Field(default=None, ge=0)
     dependency_ids: Optional[List[int]] = None
     is_running: Optional[bool] = None
+    todo_items: Optional[List[TodoItemInput]] = None
 
 
 class TodoResponse(BaseModel):
@@ -45,6 +63,7 @@ class TodoResponse(BaseModel):
     is_running: bool
     created_at: datetime
     updated_at: datetime
+    todo_items: List[TodoItemResponse]
 
 class TaskAnalysisRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10000)

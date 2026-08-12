@@ -12,6 +12,21 @@ export type Todo = {
   is_running: boolean
   created_at: string
   updated_at: string
+  todo_items: TodoItem[]
+}
+
+export type TodoItem = {
+  id: number
+  task_id: number
+  name: string
+  estimated_duration_minutes: number
+  created_at: string
+}
+
+export type TodoItemInput = {
+  id?: number
+  name: string
+  estimated_duration_minutes: number
 }
 
 export type TodoInput = {
@@ -24,6 +39,7 @@ export type TodoInput = {
   expected_duration_minutes: number | null
   dependency_ids: number[]
   is_running: boolean
+  todo_items: TodoItemInput[]
 }
 
 export type TodoStatus = 'pending' | 'scheduled' | 'running' | 'completed'
@@ -89,6 +105,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
+  listTodoItems: () => request<TodoItem[]>('/api/todo-items'),
   listSprints: () => request<Sprint[]>('/api/sprints'),
   createSprint: (name: string, endDate: string) =>
     request<Sprint>('/api/sprints', { method: 'POST', body: JSON.stringify({ name, end_date: endDate }) }),
@@ -102,7 +119,7 @@ export const api = {
     request<TaskCommandResult>('/api/task-commands', { method: 'POST', body: JSON.stringify({ text }) }),
   create: (input: TodoInput) =>
     request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
-  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>>) =>
+  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) =>
     request<Todo>(`/api/todos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),

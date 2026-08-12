@@ -10,6 +10,7 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Ask and answer clarification questions before creating a task
 - Update existing tasks from Chat with `#ID` commands for dependencies, names, durations, and start dates
 - Add detailed descriptions and notes to tasks
+- Break tasks into named todo items with estimated time and chat-friendly `$ID` references
 - Track visible task IDs, schedules, and expected duration
 - Create multiple named sprints with future end dates
 - Assign tasks to sprints and select a sprint-scoped timeline from the sidebar
@@ -109,6 +110,7 @@ add #4 to @2
 Type `#` in Chat to find a task by its ID and insert its reference.
 Type `@` to find and insert an aim reference. Aim creation follows the same
 clarification and prefilled-modal flow as task creation.
+Type `$` to find a todo item by its generated ID and insert its reference.
 When OpenAI is configured, commands are selected through structured function
 tool calls. Without a key—or if the model call fails—the documented command
 forms continue to work through the local fallback parser. Chat labels which
@@ -134,6 +136,7 @@ npm run build
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/todos` | List todos |
+| `GET` | `/api/todo-items` | List todo items and their task assignments |
 | `GET` | `/api/workspace` | Show the active workspace |
 | `GET` | `/api/sprints` | List named sprints |
 | `POST` | `/api/sprints` | Create a named sprint with a future end date |
