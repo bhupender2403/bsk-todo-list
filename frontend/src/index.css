@@ -257,6 +257,8 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .workspace-todo-block:active { cursor: grabbing; }
 .dragging-source { opacity: 0; }
 .workspace-todo-block.resizing { z-index: 2; cursor: ew-resize; user-select: none; }
+.workspace-live-tooltip { position: absolute; z-index: 5; padding: 4px 7px; border-radius: 5px; background: #34463a; color: #fff; font-size: 8px; font-weight: 700; line-height: 1; transform: translate(-50%, -100%); white-space: nowrap; pointer-events: none; box-shadow: 0 3px 8px rgba(40,53,44,.22); }
+.workspace-live-tooltip.moving { top: 7px; transform: translate(-50%, 0); }
 .workspace-todo-block b { font-size: 8px; }
 .workspace-todo-block > span:not(.resize-handle) { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-todo-block small { font-size: 7px; white-space: nowrap; }

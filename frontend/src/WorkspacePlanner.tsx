@@ -7,6 +7,7 @@ const SNAP_MINUTES = 15
 
 export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Props) {
   const [resizePreview, setResizePreview] = useState<{ itemId: number; start: number; duration: number } | null>(null)
+  const [movePreview, setMovePreview] = useState<{ itemId: number; offset: number; duration: number; start: number | null } | null>(null)
   const picked = todos.filter((todo) => todo.is_picked)
   const today = localDateKey(new Date())
   const scheduled = assignLanes(picked.flatMap((todo) => todo.todo_items
@@ -26,22 +27,35 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     } catch (reason) { onError(reason) }
   }
 
-  function beginDrag(event: DragEvent<HTMLDivElement>, itemId: number, duration?: number) {
+  function beginDrag(event: DragEvent<HTMLDivElement>, itemId: number, duration: number, preserveOffset = false) {
     const source = event.currentTarget
     event.dataTransfer.setData('text/todo-item-id', String(itemId))
-    if (duration) {
+    let offset = 0
+    if (preserveOffset) {
       const rect = event.currentTarget.getBoundingClientRect()
       const pointerRatio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
-      event.dataTransfer.setData('text/todo-drag-offset', String(pointerRatio * duration))
+      offset = pointerRatio * duration
+      event.dataTransfer.setData('text/todo-drag-offset', String(offset))
     }
     event.dataTransfer.effectAllowed = 'move'
-    requestAnimationFrame(() => source.classList.add('dragging-source'))
+    requestAnimationFrame(() => { source.classList.add('dragging-source'); setMovePreview({ itemId, offset, duration, start: null }) })
   }
 
-  function endDrag(event: DragEvent<HTMLDivElement>) { event.currentTarget.classList.remove('dragging-source') }
+  function endDrag(event: DragEvent<HTMLDivElement>) { event.currentTarget.classList.remove('dragging-source'); setMovePreview(null) }
+
+  function previewMove(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault()
+    if (!movePreview) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const pointerMinutes = ((event.clientX - rect.left) / rect.width) * DAY_MINUTES
+    const desired = Math.max(0, Math.min(snap(pointerMinutes - movePreview.offset), DAY_MINUTES - movePreview.duration))
+    const start = nearestAvailable(desired, movePreview.duration, intervals(movePreview.itemId))
+    if (start !== movePreview.start) setMovePreview({ ...movePreview, start })
+  }
 
   function place(event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
+    setMovePreview(null)
     const itemId = Number(event.dataTransfer.getData('text/todo-item-id'))
     const sourceTask = todos.find((todo) => todo.todo_items.some((item) => item.id === itemId))
     const item = sourceTask?.todo_items.find((value) => value.id === itemId)
@@ -84,17 +98,19 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     <div className="workspace-planner-scroll">
       <div className="workspace-planner-grid">
         <div className="workspace-hours">{Array.from({ length: 25 }, (_, hour) => <span style={{ left: `${(hour / 24) * 100}%` }} key={hour}>{hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour === 24 ? '12 AM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>)}</div>
-        {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : <div className="workspace-time-track workspace-shared-track" style={{ height: `${Math.max(72, scheduled.reduce((max, entry) => Math.max(max, entry.lane + 1), 1) * 51 + 18)}px` }} onDragOver={(event) => event.preventDefault()} onDrop={place}>
+        {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : <div className="workspace-time-track workspace-shared-track" style={{ height: `${Math.max(72, scheduled.reduce((max, entry) => Math.max(max, entry.lane + 1), 1) * 51 + 18)}px` }} onDragOver={previewMove} onDrop={place}>
           {scheduled.map(({ todo, item, start, duration, lane }) => {
             const displayed = resizePreview?.itemId === item.id ? resizePreview : { start, duration }
-            return <div className={`workspace-todo-block${resizePreview?.itemId === item.id ? ' resizing' : ''}`} draggable={!resizePreview} onDragStart={(event) => beginDrag(event, item.id, displayed.duration)} onDragEnd={endDrag} style={{ left: `${displayed.start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${displayed.duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(displayed.duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
+            return <div className={`workspace-todo-block${resizePreview?.itemId === item.id ? ' resizing' : ''}`} draggable={!resizePreview} onDragStart={(event) => beginDrag(event, item.id, displayed.duration, true)} onDragEnd={endDrag} style={{ left: `${displayed.start / DAY_MINUTES * 100}%`, top: `${12 + lane * 51}px`, width: `${displayed.duration / DAY_MINUTES * 100}%` }} title={`#${todo.id} ${todo.title} · $${item.id} ${item.name} · worked on ${formatMinutes(displayed.duration)} · estimated ${formatMinutes(item.estimated_duration_minutes)}`} key={item.id}>
               <span className="resize-handle start" onPointerDown={(event) => resize(event, todo, item, 'start')} /><b>#{todo.id} · ${item.id}</b><span>{item.name}</span><small>{formatMinutes(displayed.duration)}</small><span className="resize-handle end" onPointerDown={(event) => resize(event, todo, item, 'end')} />
             </div>
           })}
+          {resizePreview && <div className="workspace-live-tooltip" style={{ left: `${Math.min(100, (resizePreview.start + resizePreview.duration) / DAY_MINUTES * 100)}%`, top: `${Math.max(2, 12 + (scheduled.find(({ item }) => item.id === resizePreview.itemId)?.lane ?? 0) * 51 - 8)}px` }}>Worked: {formatMinutes(resizePreview.duration)}</div>}
+          {movePreview?.start !== null && movePreview && <div className="workspace-live-tooltip moving" style={{ left: `${movePreview.start / DAY_MINUTES * 100}%` }}>Starts {formatTime(movePreview.start)}</div>}
         </div>}
       </div>
     </div>
-    {pending.length > 0 && <section className="workspace-unscheduled"><h3>Todo items not worked on today</h3><div className="workspace-pending-rows">{pending.map(({ todo, items }) => <div className="workspace-pending-row" key={todo.id}><div className="workspace-pending-task"><b>#{todo.id}</b><strong>{todo.title}</strong><small>{items.length} pending</small></div><div className="workspace-pending-items">{items.map((item) => <div draggable onDragStart={(event) => beginDrag(event, item.id)} onDragEnd={endDrag} key={item.id}><b>${item.id}</b><span>{item.name}</span><small>estimated {formatMinutes(item.estimated_duration_minutes)}</small></div>)}</div></div>)}</div></section>}
+    {pending.length > 0 && <section className="workspace-unscheduled"><h3>Todo items not worked on today</h3><div className="workspace-pending-rows">{pending.map(({ todo, items }) => <div className="workspace-pending-row" key={todo.id}><div className="workspace-pending-task"><b>#{todo.id}</b><strong>{todo.title}</strong><small>{items.length} pending</small></div><div className="workspace-pending-items">{items.map((item) => <div draggable onDragStart={(event) => beginDrag(event, item.id, item.worked_on_duration_minutes ?? 60)} onDragEnd={endDrag} key={item.id}><b>${item.id}</b><span>{item.name}</span><small>estimated {formatMinutes(item.estimated_duration_minutes)}</small></div>)}</div></div>)}</div></section>}
   </section>
 }
 
@@ -103,6 +119,7 @@ function localDateKey(value: Date) { return `${value.getFullYear()}-${String(val
 function dateTime(date: string, minutes: number) { return `${date}T${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}:00` }
 function minutesOfDay(value: string) { const date = new Date(value); return date.getHours() * 60 + date.getMinutes() }
 function formatMinutes(value: number) { const hours = Math.floor(value / 60); const minutes = value % 60; return [hours && `${hours}h`, minutes && `${minutes}m`].filter(Boolean).join(' ') || '15m' }
+function formatTime(minutes: number) { return new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, Math.floor(minutes / 60), minutes % 60)) }
 
 type Interval = { start: number; end: number }
 function overlaps(start: number, duration: number, occupied: Interval[]) { return occupied.some((interval) => start < interval.end && start + duration > interval.start) }
