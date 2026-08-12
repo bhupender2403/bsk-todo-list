@@ -5,6 +5,7 @@ import TaskDag from './TaskDag'
 type Filter = 'all' | 'active' | 'completed'
 type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string; aimDraft?: { name: string; description: string } }
 type DetectedTask = { number: number; sourceText: string; answers: Record<string, string>; analysis: TaskAnalysis }
+type DebugEntry = { id: number; time: string; stage: string; handler: string; detail: string }
 type ContextTaskDraft = {
   title: string; description: string; sprint_id: number | null; aim_id: number | null
   start_time: string | null; end_time: string | null; expected_duration_minutes: number | null
@@ -27,6 +28,9 @@ export default function App() {
   const [todoItemName, setTodoItemName] = useState('')
   const [todoItemHours, setTodoItemHours] = useState('')
   const [chatOpen, setChatOpen] = useState(false)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [debugEntries, setDebugEntries] = useState<DebugEntry[]>([])
+  const [debugPosition, setDebugPosition] = useState({ x: 520, y: 90 })
   const [chatInput, setChatInput] = useState('')
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [detectedTasks, setDetectedTasks] = useState<DetectedTask[]>([])
@@ -63,6 +67,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const dragOffset = useRef({ x: 0, y: 0 })
+  const debugDragOffset = useRef({ x: 0, y: 0 })
   const startTimeInput = useRef<HTMLInputElement>(null)
   const detailStartTimeInput = useRef<HTMLInputElement>(null)
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
@@ -172,16 +177,33 @@ export default function App() {
     setError(reason instanceof Error ? reason.message : 'Something went wrong')
   }
 
+  function trace(stage: string, handler: string, detail: unknown) {
+    const serialized = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2)
+    setDebugEntries((current) => [...current.slice(-199), { id: Date.now() + Math.random(), time: new Date().toLocaleTimeString(), stage, handler, detail: serialized }])
+  }
+
+  function startDebugDragging(event: ReactPointerEvent<HTMLDivElement>) {
+    debugDragOffset.current = { x: event.clientX - debugPosition.x, y: event.clientY - debugPosition.y }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const move = (moveEvent: PointerEvent) => setDebugPosition({ x: Math.max(0, moveEvent.clientX - debugDragOffset.current.x), y: Math.max(0, moveEvent.clientY - debugDragOffset.current.y) })
+    const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
   async function sendChatMessage(event: FormEvent) {
     event.preventDefault()
     const text = chatInput.trim()
     if (!text) return
+    trace('Chat input', 'router', text)
     if (/^clear$/i.test(text)) {
+      trace('Decision', 'local · deterministic', 'Clear Chat and reset loaded context')
       clearChat()
       return
     }
     const directReferences = text.match(/^(?:(@\d+|#\d+))(?:\s+(@\d+|#\d+))?$/)
     if (directReferences) {
+      trace('Decision', 'local · deterministic', { action: 'load references', references: directReferences.slice(1).filter(Boolean) })
       const references = directReferences.slice(1).filter((value): value is string => Boolean(value))
       const aimReference = references.find((value) => value.startsWith('@'))
       const taskReference = references.find((value) => value.startsWith('#'))
@@ -206,6 +228,7 @@ export default function App() {
     }
     const loadRequest = text.match(/^load(?:\s+@(\d+))?(?:\s+#(\d+))?$/i)
     if (loadRequest && (loadRequest[1] || loadRequest[2])) {
+      trace('Decision', 'local · deterministic', { action: 'load command', aim: loadRequest[1], task: loadRequest[2] })
       const aimId = loadRequest[1] ? Number(loadRequest[1]) : null
       const taskId = loadRequest[2] ? Number(loadRequest[2]) : null
       if ((aimId !== null && !aims.some((aim) => aim.id === aimId)) || (taskId !== null && !todos.some((todo) => todo.id === taskId))) {
@@ -225,6 +248,7 @@ export default function App() {
     }
     const aimDescriptionUpdate = text.match(/^update(?:\s+aim|\s+@(\d+))\s+description\s+to\s+["“]?(.+?)["”]?\.?$/i)
     if (aimDescriptionUpdate) {
+      trace('Decision', 'local · deterministic', { action: 'edit aim description', aim: aimDescriptionUpdate[1] ?? loadedAimId })
       const aimId = aimDescriptionUpdate[1] ? Number(aimDescriptionUpdate[1]) : loadedAimId
       const aim = aims.find((item) => item.id === aimId)
       const messageId = Date.now()
@@ -240,6 +264,7 @@ export default function App() {
       return
     }
     if (pendingAimName) {
+      trace('Decision', 'local · clarification', 'Used reply as the pending aim name')
       const messageId = Date.now()
       setPendingAimName(false)
       setChatInput('')
@@ -250,6 +275,7 @@ export default function App() {
       return
     }
     if (/^(?:hi|hello|hey|hi there|hello there)[!. ]*$/i.test(text)) {
+      trace('Decision', 'local · greeting', 'Returned deterministic greeting')
       const messageId = Date.now()
       setChatInput('')
       setChatMessages((current) => [
@@ -272,7 +298,9 @@ export default function App() {
           else if (/^depends?\s+on\s+#\d+/i.test(text)) commandText = `#${loadedTaskId} ${text}`
           else if (/^(?:add|assign)\s+(?:to|into)\s+@\d+/i.test(text)) commandText = text.replace(/^(add|assign)\s+/i, `$1 #${loadedTaskId} `)
         }
+        trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local fallback', { endpoint: '/api/task-commands', text: commandText })
         const result = await api.runTaskCommand(commandText)
+        trace('Response', result.source === 'local' ? 'local fallback' : `OpenAI · ${result.source}`, result)
         if (result.handled && result.todo && result.message) {
           setChatInput('')
           setChatMessages((current) => [
@@ -296,6 +324,7 @@ export default function App() {
     }
     const aimRequest = text.match(/^(?:create|add)(?: a| an)? aim(?:\s+(?:to|for|named|called))?\s*(.*)$/i)
     if (aimRequest) {
+      trace('Decision', 'local · aim detector', { action: 'create aim draft', text })
       const messageId = Date.now()
       const name = aimRequest[1].trim()
       setChatInput('')
@@ -317,7 +346,9 @@ export default function App() {
       const sourceText = active && unanswered ? active.sourceText : text
       const answers = active && unanswered ? { ...active.answers, [unanswered]: text } : {}
       setChatMessages((current) => [...current, { id: Date.now(), role: 'user', text, taskNumber }])
+      trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local detector', { endpoint: '/api/task-analysis', text: sourceText, answers })
       const result = await api.analyzeTask(sourceText, answers)
+      trace('Response', result.analysis_source === 'local' ? 'local detector' : `OpenAI · ${result.analysis_source}`, result)
       const updated = { number: taskNumber, sourceText, answers, analysis: result }
       setDetectedTasks((current) => [...current.filter((task) => task.number !== taskNumber), updated].sort((a, b) => a.number - b.number))
       setActiveTaskNumber(result.clarification_questions.length ? taskNumber : null)
@@ -741,6 +772,7 @@ export default function App() {
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
               <span aria-hidden="true">◌</span> Chat
             </button>
+            <button className={`debug-toggle ${debugOpen ? 'active' : ''}`} onClick={() => setDebugOpen((current) => !current)} aria-expanded={debugOpen} title="Open Chat debug trace" aria-label="Open Chat debug trace">⌘</button>
             <div className="status-counters" aria-label="Task status counts">
               {(['pending', 'scheduled', 'running', 'completed'] as const).map((status) => (
                 <div className={`status-count status-${status}`} key={status}>
@@ -859,6 +891,15 @@ export default function App() {
           </div>
         </aside>}
       </section>
+
+      {debugOpen && <section className="debug-window" style={{ left: debugPosition.x, top: debugPosition.y }} role="dialog" aria-label="Chat debug trace">
+        <div className="debug-window-handle" onPointerDown={startDebugDragging}>
+          <div><span>Chat debug</span><small>{taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'Local mode'}</small></div>
+          <button onClick={() => setDebugOpen(false)} aria-label="Close debug window">×</button>
+        </div>
+        <div className="debug-toolbar"><span>{debugEntries.length} events</span><button onClick={() => setDebugEntries([])} disabled={debugEntries.length === 0}>Clear trace</button></div>
+        <div className="debug-log">{debugEntries.length === 0 ? <p>Chat routing and model communication will appear here.</p> : [...debugEntries].reverse().map((entry) => <article key={entry.id}><header><time>{entry.time}</time><b>{entry.stage}</b><span className={entry.handler.toLowerCase().includes('openai') ? 'llm' : 'local'}>{entry.handler}</span></header><pre>{entry.detail}</pre></article>)}</div>
+      </section>}
 
       {detailModalOpen && selectedTodo && (
         <section className="task-floating-modal" style={{ left: detailPosition.x, top: detailPosition.y }} role="dialog" aria-modal="false" aria-labelledby="floating-task-title">

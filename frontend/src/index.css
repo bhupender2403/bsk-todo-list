@@ -77,7 +77,9 @@ nav button.active { background: #dfe5dc; color: #405345; font-weight: 600; }
 h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46px); line-height: .95; letter-spacing: -.03em; }
 .subtitle { margin: 7px 0 0; color: #7b817c; font-size: 13px; }
 .header-actions { display: flex; align-items: center; gap: 9px; }
-.sidebar-toggle, .header-add-task, .chat-toggle, .view-toggle { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #d9ddd5; border-radius: 9px; background: white; color: #59625b; font-size: 11px; font-weight: 600; }
+.sidebar-toggle, .header-add-task, .chat-toggle, .view-toggle, .debug-toggle { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #d9ddd5; border-radius: 9px; background: white; color: #59625b; font-size: 11px; font-weight: 600; }
+.debug-toggle { width: 31px; height: 31px; justify-content: center; padding: 0; font-size: 14px; }
+.debug-toggle.active { border-color: #718675; background: #e8eee5; color: #465e4b; }
 .view-toggle { background: #edf0e9; }
 .sidebar-toggle:hover { background: #f1f3ee; }
 .header-add-task { border-color: #465e4b; background: #465e4b; color: white; box-shadow: 0 5px 14px rgba(70,94,75,.14); }
@@ -128,6 +130,25 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .task-modal-handle button { width: 29px; height: 29px; display: grid; place-content: center; padding: 0; border: 0; border-radius: 50%; background: #dde2da; color: #677068; font-size: 20px; line-height: 1; }
 .task-floating-modal .task-detail { max-height: calc(100vh - 70px); overflow-y: auto; margin: 0; min-height: 0; padding: 30px 34px 32px; border: 0; border-radius: 0; background: #fbfbf7; }
 .task-floating-modal .task-detail h2 { margin-top: 0; }
+
+.debug-window { position: fixed; z-index: 30; width: min(620px, calc(100vw - 20px)); height: min(620px, calc(100vh - 20px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; border: 1px solid #444d46; border-radius: 14px; background: #202622; color: #ecf1ed; box-shadow: 0 24px 70px rgba(20,27,22,.34); }
+.debug-window-handle { display: flex; align-items: center; justify-content: space-between; padding: 10px 11px 10px 14px; border-bottom: 1px solid #3a443c; background: #2b342d; cursor: move; touch-action: none; user-select: none; }
+.debug-window-handle > div { display: grid; gap: 2px; }
+.debug-window-handle span { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.debug-window-handle small { color: #9eafa2; font-size: 9px; }
+.debug-window-handle button { width: 27px; height: 27px; display: grid; place-content: center; padding: 0; border: 0; border-radius: 50%; background: #3b463e; color: white; font-size: 18px; }
+.debug-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 7px 11px; border-bottom: 1px solid #343d36; color: #93a097; font-size: 9px; }
+.debug-toolbar button { padding: 4px 7px; border: 1px solid #465149; border-radius: 6px; background: #303a33; color: #cbd5cd; font-size: 9px; }
+.debug-toolbar button:disabled { opacity: .4; }
+.debug-log { overflow: auto; padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.debug-log > p { color: #839087; font-size: 10px; text-align: center; }
+.debug-log article { margin-bottom: 8px; overflow: hidden; border: 1px solid #364039; border-radius: 8px; background: #252c27; }
+.debug-log article header { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-bottom: 1px solid #343d36; font-size: 8px; }
+.debug-log time { color: #829087; }
+.debug-log article header b { color: #dce5de; }
+.debug-log article header span { margin-left: auto; padding: 2px 5px; border-radius: 99px; background: #35433a; color: #a9c5af; }
+.debug-log article header span.llm { background: #443d55; color: #cfc2ed; }
+.debug-log pre { margin: 0; padding: 8px; overflow: auto; color: #bec9c0; font: inherit; font-size: 9px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 
 .dag-panel { margin-top: 18px; min-height: calc(100% - 112px); overflow: hidden; border: 1px solid #e0e2da; border-radius: 20px; background: rgba(255,255,255,.6); }
 .date-timeline { position: relative; height: 76px; border-bottom: 1px solid #e2e5de; background: #f8f9f5; }
