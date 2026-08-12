@@ -206,6 +206,43 @@ export default function App() {
       setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'Aims cannot be created or edited from Chat. Use the “Add aim” button in the top header.' }])
       return
     }
+    const todoItemsRequest = text.match(/^(?:add|create)\s+todos?\s+(.+)$/i)
+    if (todoItemsRequest) {
+      const messageId = Date.now()
+      setChatInput('')
+      if (loadedTaskId === null) {
+        trace('Decision', 'local · todo item parser', 'Rejected because no task is loaded')
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'Load a task first with #ID, then add its todo items.' }])
+        return
+      }
+      const matches = Array.from(todoItemsRequest[1].matchAll(/(.+?)\s+(\d+(?:\.\d+)?)\s*(days?|hours?|hrs?)(?=\s+.+?\s+\d+(?:\.\d+)?\s*(?:days?|hours?|hrs?)|$)/gi))
+      if (matches.length === 0) {
+        trace('Decision', 'local · todo item parser', 'No name and duration pairs found')
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'Include each todo name and duration, for example: add todo research 2 days write draft 4 hours.' }])
+        return
+      }
+      const newItems: TodoItemInput[] = matches.map((match) => ({
+        name: match[1].trim().replace(/^(?:and|then)\s+/i, ''),
+        estimated_duration_minutes: Number(match[2]) * (/^days?$/i.test(match[3]) ? 1440 : 60),
+      }))
+      const task = todos.find((todo) => todo.id === loadedTaskId)
+      if (!task) {
+        setError('The loaded task was not found')
+        return
+      }
+      trace('Decision', 'local · todo item parser', { task_id: loadedTaskId, items: newItems })
+      try {
+        const saved = await api.update(task.id, { todo_items: [...task.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })), ...newItems] })
+        setTodos((current) => current.map((todo) => todo.id === saved.id ? saved : todo))
+        setContextTaskDraft(contextDraftFor(saved))
+        trace('Response', 'local · API update', { task_id: saved.id, todo_items: saved.todo_items })
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Added ${newItems.length} todo item${newItems.length === 1 ? '' : 's'} to #${saved.id}: ${saved.todo_items.slice(-newItems.length).map((item) => `$${item.id} ${item.name}`).join(', ')}.` }])
+      } catch (reason) {
+        showError(reason)
+        trace('Error', 'local · API update', reason instanceof Error ? reason.message : String(reason))
+      }
+      return
+    }
     const directReferences = text.match(/^(?:(@\d+|#\d+))(?:\s+(@\d+|#\d+))?$/)
     if (directReferences) {
       trace('Decision', 'local · deterministic', { action: 'load references', references: directReferences.slice(1).filter(Boolean) })
