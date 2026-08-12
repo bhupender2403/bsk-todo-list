@@ -193,6 +193,22 @@ export default function App() {
       setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Loaded ${[aimId && `@${aimId}`, taskId && `#${taskId}`].filter(Boolean).join(' and ')}.` }])
       return
     }
+    const aimDescriptionUpdate = text.match(/^update(?:\s+aim|\s+@(\d+))\s+description\s+to\s+["“]?(.+?)["”]?\.?$/i)
+    if (aimDescriptionUpdate) {
+      const aimId = aimDescriptionUpdate[1] ? Number(aimDescriptionUpdate[1]) : loadedAimId
+      const aim = aims.find((item) => item.id === aimId)
+      const messageId = Date.now()
+      setChatInput('')
+      if (!aim) {
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'Load an aim first or include its @ID, for example: update @2 description to …' }])
+        return
+      }
+      const description = aimDescriptionUpdate[2].trim()
+      setLoadedAimId(aim.id)
+      setContextAimDraft({ name: aim.name, description })
+      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Updated the @${aim.id} description in the editor. Select “Update aim” to save it.` }])
+      return
+    }
     if (pendingAimName) {
       const messageId = Date.now()
       setPendingAimName(false)
