@@ -776,7 +776,7 @@ export default function App() {
           </div>
         </aside>
 
-        <section className="workspace">
+        <section className={`workspace ${dashboardMode === 'workspace' ? 'workspace-wide' : ''}`}>
           {error && <p className="error" role="alert">{error}</p>}
 
           {dashboardMode === 'tasks' ? <>
@@ -812,7 +812,7 @@ export default function App() {
           </section> : <section className="workspace-dashboard" aria-label="Workspace dashboard" />}
         </section>
 
-        {!chatOpen && <aside className="risk-sidebar" aria-label="Tasks at risk">
+        {!chatOpen && dashboardMode !== 'workspace' && <aside className="risk-sidebar" aria-label="Tasks at risk">
           <div className="risk-sidebar-heading">
             <p className="eyebrow">Attention</p>
             <h2>At risk</h2>
