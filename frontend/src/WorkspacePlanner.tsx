@@ -61,7 +61,6 @@ export default function WorkspacePlanner({ todos, onTaskUpdated, onError }: Prop
     <header><div><p className="eyebrow">Today · worked-on time</p><h2>{new Intl.DateTimeFormat('en', { dateStyle: 'full' }).format(new Date())}</h2></div><small>Placement records work time only · estimates and task dates stay unchanged</small></header>
     <div className="workspace-planner-scroll">
       <div className="workspace-planner-grid">
-        <div className="workspace-time-corner">Picked task</div>
         <div className="workspace-hours">{Array.from({ length: 25 }, (_, hour) => <span style={{ left: `${(hour / 24) * 100}%` }} key={hour}>{hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : hour === 24 ? '12 AM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>)}</div>
         {picked.length === 0 ? <div className="workspace-planner-empty">Pick a task from the left sidebar to add it to today’s workspace.</div> : picked.map((task) => <div className="workspace-task-row" key={task.id}>
           <div className="workspace-task-label"><b>#{task.id}</b><strong>{task.title}</strong><small>{task.todo_items.length} todo items</small></div>
