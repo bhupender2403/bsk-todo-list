@@ -1,5 +1,5 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { api, getTodoStatus, type Aim, type Sprint, type TaskAnalysis, type TaskAnalysisConfig, type Todo, type TodoItemInput } from './api'
+import { api, getTodoStatus, type Aim, type TaskAnalysis, type TaskAnalysisConfig, type Todo, type TodoItemInput } from './api'
 import TaskDag from './TaskDag'
 
 type Filter = 'all' | 'active' | 'completed'
@@ -7,7 +7,7 @@ type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskN
 type DetectedTask = { number: number; sourceText: string; answers: Record<string, string>; analysis: TaskAnalysis }
 type DebugEntry = { id: number; time: string; stage: string; handler: string; detail: string }
 type ContextTaskDraft = {
-  title: string; description: string; sprint_id: number | null; aim_id: number | null
+  title: string; description: string; aim_id: number | null
   start_time: string | null; end_time: string | null; expected_duration_minutes: number | null
   dependency_ids: number[]; is_running: boolean; todo_items: TodoItemInput[]
 }
@@ -16,7 +16,6 @@ export default function App() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [taskSprintId, setTaskSprintId] = useState('')
   const [taskAimId, setTaskAimId] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -36,11 +35,7 @@ export default function App() {
   const [detectedTasks, setDetectedTasks] = useState<DetectedTask[]>([])
   const [activeTaskNumber, setActiveTaskNumber] = useState<number | null>(null)
   const [taskAnalysisConfig, setTaskAnalysisConfig] = useState<TaskAnalysisConfig | null>(null)
-  const [sprints, setSprints] = useState<Sprint[]>([])
   const [aims, setAims] = useState<Aim[]>([])
-  const [sprintName, setSprintName] = useState('')
-  const [sprintEndDate, setSprintEndDate] = useState('')
-  const [sprintModalOpen, setSprintModalOpen] = useState(false)
   const [aimModalOpen, setAimModalOpen] = useState(false)
   const [aimName, setAimName] = useState('')
   const [aimDescription, setAimDescription] = useState('')
@@ -50,9 +45,7 @@ export default function App() {
   const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
   const [contextTaskDraft, setContextTaskDraft] = useState<ContextTaskDraft | null>(null)
   const [contextDependencyQuery, setContextDependencyQuery] = useState('')
-  const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null)
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null)
-  const [sprintDropActive, setSprintDropActive] = useState(false)
   const [sourceTaskNumber, setSourceTaskNumber] = useState<number | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
@@ -72,11 +65,10 @@ export default function App() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    Promise.all([api.list(), api.taskAnalysisConfig(), api.listSprints(), api.listAims()])
-      .then(([items, analysisConfig, sprintItems, aimItems]) => {
+    Promise.all([api.list(), api.taskAnalysisConfig(), api.listAims()])
+      .then(([items, analysisConfig, aimItems]) => {
         setTodos(items)
         setTaskAnalysisConfig(analysisConfig)
-        setSprints(sprintItems)
         setAims(aimItems)
         setSelectedId(items[0]?.id ?? null)
       })
@@ -102,7 +94,6 @@ export default function App() {
   }, [todos, filter, query])
 
   const dashboardTodos = useMemo(() => {
-    if (selectedSprintId !== null) return todos.filter((todo) => todo.sprint_id === selectedSprintId)
     const byId = new Map(todos.map((todo) => [todo.id, todo]))
     const related = new Map(todos.map((todo) => [todo.id, new Set<number>()]))
     for (const todo of todos) {
@@ -123,9 +114,7 @@ export default function App() {
       }
     }
     return todos.filter((todo) => included.has(todo.id))
-  }, [todos, selectedSprintId])
-
-  const selectedSprint = sprints.find((sprint) => sprint.id === selectedSprintId) ?? null
+  }, [todos])
 
   const readyDetectedTasks = useMemo(
     () => detectedTasks.filter((task) => task.analysis.clarification_questions.length === 0),
@@ -397,7 +386,6 @@ export default function App() {
     setSourceTaskNumber(task.number)
     setTitle(suggestion.title)
     setDescription(suggestion.description)
-    setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
     setTaskAimId('')
     setStartTime(suggestion.start_date ?? '')
     setEndTime('')
@@ -420,7 +408,6 @@ export default function App() {
     setContextTaskDraft({
       title: suggestion.title,
       description: suggestion.description,
-      sprint_id: selectedSprintId,
       aim_id: loadedAimId,
       start_time: suggestion.start_date ? `${suggestion.start_date}T00:00:00` : null,
       end_time: null,
@@ -436,11 +423,11 @@ export default function App() {
 
   function contextDraftFor(todo: Todo | null): ContextTaskDraft {
     return todo ? {
-      title: todo.title, description: todo.description, sprint_id: todo.sprint_id, aim_id: todo.aim_id,
+      title: todo.title, description: todo.description, aim_id: todo.aim_id,
       start_time: todo.start_time, end_time: todo.end_time, expected_duration_minutes: todo.expected_duration_minutes,
       dependency_ids: todo.dependency_ids, is_running: todo.is_running,
       todo_items: todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })),
-    } : { title: '', description: '', sprint_id: null, aim_id: loadedAimId, start_time: null, end_time: null, expected_duration_minutes: null, dependency_ids: [], is_running: false, todo_items: [] }
+    } : { title: '', description: '', aim_id: loadedAimId, start_time: null, end_time: null, expected_duration_minutes: null, dependency_ids: [], is_running: false, todo_items: [] }
   }
 
   function changeContextTask(changes: Partial<ContextTaskDraft>) {
@@ -513,38 +500,6 @@ export default function App() {
     setSourceTaskNumber(null)
   }
 
-  async function saveSprint(event: FormEvent) {
-    event.preventDefault()
-    try {
-      const sprint = await api.createSprint(sprintName, sprintEndDate)
-      setSprints((current) => [...current, sprint].sort((a, b) => a.end_date.localeCompare(b.end_date)))
-      setSprintModalOpen(false)
-      setSprintName('')
-      setSprintEndDate('')
-    } catch (reason) {
-      showError(reason)
-    }
-  }
-
-  function openSprintModal() {
-    setSprintName('')
-    setSprintEndDate('')
-    setSprintModalOpen(true)
-  }
-
-  function tomorrowDate() {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    return localInputDate(tomorrow)
-  }
-
-  function localInputDate(value: Date) {
-    const year = value.getFullYear()
-    const month = String(value.getMonth() + 1).padStart(2, '0')
-    const day = String(value.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
   function openAimModal(draft?: { name: string; description: string }) {
     setAimName(draft?.name ?? '')
     setAimDescription(draft?.description ?? '')
@@ -572,7 +527,6 @@ export default function App() {
       const input = {
         title,
         description,
-        sprint_id: taskSprintId ? Number(taskSprintId) : null,
         aim_id: taskAimId ? Number(taskAimId) : null,
         start_time: startTime ? `${startTime}T00:00:00` : null,
         end_time: endTime || null,
@@ -593,7 +547,6 @@ export default function App() {
       setQuery('')
       setFilter('all')
       setAddModalOpen(false)
-      setTaskSprintId('')
       setTaskAimId('')
       setStartTime('')
       setEndTime('')
@@ -619,7 +572,6 @@ export default function App() {
     setEditingId(null)
     setTitle('')
     setDescription('')
-    setTaskSprintId(selectedSprintId === null ? '' : String(selectedSprintId))
     setTaskAimId('')
     setStartTime('')
     setEndTime('')
@@ -641,7 +593,6 @@ export default function App() {
     setEditingId(todo.id)
     setTitle(todo.title)
     setDescription(todo.description)
-    setTaskSprintId(todo.sprint_id === null ? '' : String(todo.sprint_id))
     setTaskAimId(todo.aim_id === null ? '' : String(todo.aim_id))
     setStartTime(todo.start_time?.slice(0, 10) ?? '')
     setEndTime(todo.end_time?.slice(0, 16) ?? '')
@@ -682,22 +633,13 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
-  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) {
+  async function updateTodo(todo: Todo, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) {
     try {
       const updated = await api.update(todo.id, changes)
       setTodos((current) => current.map((item) => (item.id === todo.id ? updated : item)))
     } catch (reason) {
       showError(reason)
     }
-  }
-
-  async function assignDroppedTaskToSprint() {
-    if (draggingTaskId === null || selectedSprintId === null) return
-    const todo = todos.find((item) => item.id === draggingTaskId)
-    setSprintDropActive(false)
-    setDraggingTaskId(null)
-    if (!todo || todo.sprint_id === selectedSprintId) return
-    await updateTodo(todo, { sprint_id: selectedSprintId })
   }
 
   async function assignTaskToAim(todoId: number, aimId: number) {
@@ -793,23 +735,6 @@ export default function App() {
 
         <aside className="sidebar">
           <button className="sidebar-edge-toggle" onClick={() => setSidebarOpen((current) => !current)} aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} aria-expanded={sidebarOpen} title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}>{sidebarOpen ? '‹' : '›'}</button>
-          <section className="sprint-sidebar-section">
-            <div className="sidebar-heading sprint-heading">
-              <div><p className="eyebrow">Planning</p><h2>Sprints</h2></div>
-              <div className="sprint-heading-actions">
-                <button className="add-sprint-icon" onClick={openSprintModal} aria-label="Create sprint">＋</button>
-              </div>
-            </div>
-            <div className="sprint-list">
-              <button className={`sprint-card ${selectedSprintId === null ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(null); setDashboardMode('tasks'); setChatOpen(false) }}>
-                <strong>All tasks</strong><small>Full timeline</small>
-              </button>
-              {sprints.map((sprint) => <button className={`sprint-card ${selectedSprintId === sprint.id ? 'selected' : ''}`} onClick={() => { setSelectedSprintId(sprint.id); setSelectedId(null); setDashboardMode('tasks'); setChatOpen(false) }} key={sprint.id}>
-                <strong>{sprint.name}</strong><small>{formatDate(sprint.created_at)} – {formatDate(sprint.end_date)}</small>
-              </button>)}
-            </div>
-          </section>
-
           <div className="sidebar-heading">
             <div>
               <p className="eyebrow">My workspace</p>
@@ -834,7 +759,7 @@ export default function App() {
             {loading ? <p className="sidebar-empty">Loading…</p> : visibleTodos.length === 0 ? (
               <p className="sidebar-empty">No matching tasks.</p>
             ) : visibleTodos.map((todo) => (
-              <button draggable={selectedSprintId !== null || dashboardMode === 'aims'} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => { setDraggingTaskId(null); setSprintDropActive(false) }} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
+              <button draggable={dashboardMode === 'aims'} className={`task-card ${selectedId === todo.id ? 'selected' : ''} ${getTodoStatus(todo) === 'completed' ? 'completed' : ''} ${draggingTaskId === todo.id ? 'dragging' : ''}`} onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/task-id', String(todo.id)); setDraggingTaskId(todo.id) }} onDragEnd={() => setDraggingTaskId(null)} onClick={() => setSelectedId(todo.id)} onDoubleClick={() => openTaskDetail(todo.id)} key={todo.id}>
                 <span className="card-copy">
                   <strong>{todo.title}</strong>
                   <small>#{todo.id} · {getTodoStatus(todo)}</small>
@@ -845,12 +770,11 @@ export default function App() {
           </div>
         </aside>
 
-        <section className={`workspace ${dashboardMode === 'tasks' && sprintDropActive ? 'sprint-drop-ready' : ''}`} onDragOver={(event) => { if (dashboardMode === 'tasks' && selectedSprintId !== null && draggingTaskId !== null) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; setSprintDropActive(true) } }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSprintDropActive(false) }} onDrop={(event) => { if (dashboardMode !== 'tasks') return; event.preventDefault(); void assignDroppedTaskToSprint() }}>
+        <section className="workspace">
           {error && <p className="error" role="alert">{error}</p>}
 
           {dashboardMode === 'tasks' ? <>
-            {selectedSprint && <div className="sprint-view-heading"><div><span>Sprint</span><strong>{selectedSprint.name}</strong></div><small>{sprintDropActive ? 'Drop to assign task' : `${formatDate(selectedSprint.created_at)} – ${formatDate(selectedSprint.end_date)} · ${dashboardTodos.length} task${dashboardTodos.length === 1 ? '' : 's'}`}</small></div>}
-            <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} rangeStart={selectedSprint?.created_at.slice(0, 10)} rangeEnd={selectedSprint?.end_date} />
+            <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} />
           </> : <section className="aim-dashboard">
             <label className="aim-search"><span aria-hidden="true">⌕</span><input value={aimQuery} onChange={(event) => setAimQuery(event.target.value)} placeholder="Search aims by name, description, or @ID…" aria-label="Search aims" />{aimQuery && <button onClick={() => setAimQuery('')} aria-label="Clear aim search">×</button>}</label>
             {aims.length === 0 ? <div className="aim-empty"><h2>No aims yet</h2><p>Create an aim, then drag tasks onto it.</p></div> : visibleAims.length === 0 ? <div className="aim-empty"><h2>No matching aims</h2><p>Try a different search.</p></div> : visibleAims.map((aim) => {
@@ -921,7 +845,6 @@ export default function App() {
             <p className="created-date">Created {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(selectedTodo.created_at))}</p>
             <p className={selectedTodo.description ? 'task-description' : 'task-description empty'}>{selectedTodo.description || 'No description added.'}</p>
             <div className="detail-fields">
-              <div><span>Sprint</span><strong>{sprints.find((sprint) => sprint.id === selectedTodo.sprint_id)?.name ?? 'None'}</strong></div>
               <div><span>Aim</span><strong>{aims.find((aim) => aim.id === selectedTodo.aim_id)?.name ?? 'None'}</strong></div>
               <label>Start date
                 <div className="date-time-control detail-date-time">
@@ -966,12 +889,6 @@ export default function App() {
                 <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe this task…" maxLength={5000} rows={2} />
               </label>
               <div className="form-row identity-row">
-                <label>Sprint <small>Optional</small>
-                  <select value={taskSprintId} onChange={(event) => setTaskSprintId(event.target.value)}>
-                    <option value="">None</option>
-                    {sprints.map((sprint) => <option value={sprint.id} key={sprint.id}>{sprint.name}</option>)}
-                  </select>
-                </label>
                 <label>Aim <small>Optional</small>
                   <select value={taskAimId} onChange={(event) => setTaskAimId(event.target.value)}>
                     <option value="">None</option>
@@ -1113,7 +1030,7 @@ export default function App() {
             {readyDetectedTasks.length > 0 && <div className="detected-context-list">{readyDetectedTasks.map((task) => <button onClick={() => loadDetectedTaskInContext(task)} key={task.number}>＋ Load detected task {task.number}: {task.analysis.suggestion.title}</button>)}</div>}
             <input value={contextTaskDraft?.title ?? loadedTask?.title ?? ''} onChange={(event) => changeContextTask({ title: event.target.value })} placeholder="Task name" />
             <textarea value={contextTaskDraft?.description ?? loadedTask?.description ?? ''} onChange={(event) => changeContextTask({ description: event.target.value })} placeholder="Task description" rows={2} />
-            <div className="context-form-row"><label>Sprint<select value={contextTaskDraft?.sprint_id ?? loadedTask?.sprint_id ?? ''} onChange={(event) => changeContextTask({ sprint_id: event.target.value ? Number(event.target.value) : null })}><option value="">None</option>{sprints.map((sprint) => <option value={sprint.id} key={sprint.id}>{sprint.name}</option>)}</select></label><label>Aim<select value={contextTaskDraft?.aim_id ?? loadedTask?.aim_id ?? ''} onChange={(event) => { const aimId = event.target.value ? Number(event.target.value) : null; changeContextTask({ aim_id: aimId }); setLoadedAimId(aimId) }}><option value="">None</option>{aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}</select></label></div>
+            <div className="context-form-row"><label>Aim<select value={contextTaskDraft?.aim_id ?? loadedTask?.aim_id ?? ''} onChange={(event) => { const aimId = event.target.value ? Number(event.target.value) : null; changeContextTask({ aim_id: aimId }); setLoadedAimId(aimId) }}><option value="">None</option>{aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}</select></label></div>
             <div className="context-form-row three"><label>Start date<input type="date" value={(contextTaskDraft?.start_time ?? loadedTask?.start_time ?? '').slice(0, 10)} onChange={(event) => changeContextTask({ start_time: event.target.value ? `${event.target.value}T00:00:00` : null })} /></label><label>End date<input type="date" value={(contextTaskDraft?.end_time ?? loadedTask?.end_time ?? '').slice(0, 10)} onChange={(event) => changeContextTask({ end_time: event.target.value ? `${event.target.value}T00:00:00` : null })} /></label><label>Estimated hours<input type="number" min="0" step="0.25" value={(contextTaskDraft?.expected_duration_minutes ?? loadedTask?.expected_duration_minutes ?? 0) / 60 || ''} onChange={(event) => changeContextTask({ expected_duration_minutes: Number(event.target.value) * 60 || null })} /></label></div>
             <div className="context-dependencies"><label htmlFor="context-dependency-input">Dependencies</label><div><input id="context-dependency-input" list="context-dependency-options" value={contextDependencyQuery} onChange={(event) => setContextDependencyQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addContextDependency() } }} placeholder="Search by task name or #ID…" /><datalist id="context-dependency-options">{todos.filter((todo) => todo.id !== loadedTaskId && !(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).includes(todo.id)).map((todo) => <option value={`#${todo.id} ${todo.title}`} key={todo.id} />)}</datalist><button onClick={addContextDependency} disabled={!contextDependencyQuery.trim()}>Add</button></div>{(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).length > 0 && <div className="context-dependency-chips">{(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).map((id) => <button onClick={() => changeContextTask({ dependency_ids: (contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).filter((value) => value !== id) })} key={id}>#{id} {taskName(id)} ×</button>)}</div>}</div>
             <div className="context-items"><span>Todo items</span>{(contextTaskDraft?.todo_items ?? loadedTask?.todo_items ?? []).map((item, index) => <div key={item.id ?? index}><b>{item.id ? `$${item.id}` : 'New'}</b><input value={item.name} onChange={(event) => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value) })} /><input type="number" min="0" step="0.25" value={item.estimated_duration_minutes / 60 || ''} onChange={(event) => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).map((value, itemIndex) => itemIndex === index ? { ...value, estimated_duration_minutes: Number(event.target.value) * 60 } : value) })} /><button onClick={() => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).filter((_, itemIndex) => itemIndex !== index) })}>×</button></div>)}<button className="add-context-item" onClick={() => changeContextTask({ todo_items: [...(contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items), { name: 'New todo item', estimated_duration_minutes: 0 }] })}>＋ Add todo item</button></div>
@@ -1123,33 +1040,10 @@ export default function App() {
       </section>
       </section>}
 
-      {sprintModalOpen && <div className="modal-backdrop" onMouseDown={(event) => {
-        if (event.target === event.currentTarget) setSprintModalOpen(false)
-      }}>
-        <section className="sprint-modal" role="dialog" aria-modal="true" aria-labelledby="sprint-modal-title">
-          <div className="modal-heading">
-            <div><p className="eyebrow">Planning</p><h2 id="sprint-modal-title">Create a sprint</h2></div>
-            <button onClick={() => setSprintModalOpen(false)} aria-label="Close sprint modal">×</button>
-          </div>
-          <form onSubmit={saveSprint}>
-            <label>Sprint name
-              <input autoFocus value={sprintName} onChange={(event) => setSprintName(event.target.value)} placeholder="e.g. August launch" maxLength={120} />
-            </label>
-            <label>Sprint end date
-              <input type="date" min={tomorrowDate()} value={sprintEndDate} onChange={(event) => setSprintEndDate(event.target.value)} />
-            </label>
-            <div className="modal-actions">
-              <button type="button" onClick={() => setSprintModalOpen(false)}>Cancel</button>
-              <button className="primary" type="submit" disabled={!sprintName.trim() || !sprintEndDate}>Create sprint</button>
-            </div>
-          </form>
-        </section>
-      </div>}
-
       {aimModalOpen && <div className="modal-backdrop" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setAimModalOpen(false)
       }}>
-        <section className="sprint-modal" role="dialog" aria-modal="true" aria-labelledby="aim-modal-title">
+        <section className="aim-modal" role="dialog" aria-modal="true" aria-labelledby="aim-modal-title">
           <div className="modal-heading">
             <div><p className="eyebrow">Direction</p><h2 id="aim-modal-title">Create an aim</h2></div>
             <button onClick={() => setAimModalOpen(false)} aria-label="Close aim modal">×</button>

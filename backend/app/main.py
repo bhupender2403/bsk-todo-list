@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 import os
-from datetime import date
 from typing import Dict, List
 
 from fastapi import Depends, FastAPI, HTTPException, Response, status
@@ -9,15 +8,13 @@ from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
 from .database import Base, WORKSPACE, engine, get_db
-from .models import Aim, Sprint, Todo, TodoItem
+from .models import Aim, Todo, TodoItem
 from .schemas import (
     TaskAnalysisRequest,
     TaskAnalysisResponse,
     TaskAnalysisConfigResponse,
     TaskCommandRequest,
     TaskCommandResponse,
-    SprintCreate,
-    SprintResponse,
     AimCreate,
     AimUpdate,
     AimResponse,
@@ -44,7 +41,6 @@ def migrate_sqlite_schema() -> None:
     columns = {column["name"] for column in inspector.get_columns("todos")}
     additions = {
         "description": "TEXT NOT NULL DEFAULT ''",
-        "sprint_id": "INTEGER",
         "aim_id": "INTEGER",
         "start_time": "DATETIME",
         "end_time": "DATETIME",
@@ -61,15 +57,6 @@ def migrate_sqlite_schema() -> None:
         connection.execute(
             text("UPDATE todos SET end_time = updated_at WHERE completed = 1 AND end_time IS NULL")
         )
-        if "sprint_settings" in inspector.get_table_names():
-            connection.execute(
-                text(
-                    "INSERT INTO sprints (name, end_date) "
-                    "SELECT 'Current sprint', end_date FROM sprint_settings "
-                    "WHERE end_date IS NOT NULL "
-                    "AND NOT EXISTS (SELECT 1 FROM sprints WHERE name = 'Current sprint')"
-                )
-            )
 
 
 app = FastAPI(title="BSK Todo API", version="1.0.0", lifespan=lifespan)
@@ -144,27 +131,6 @@ def health() -> Dict[str, str]:
 @app.get("/api/workspace")
 def workspace() -> Dict[str, str]:
     return {"path": str(WORKSPACE)}
-
-
-@app.get("/api/sprints", response_model=List[SprintResponse])
-def list_sprints(db: Session = Depends(get_db)):
-    return list(db.scalars(select(Sprint).order_by(Sprint.end_date, Sprint.id)))
-
-
-@app.post("/api/sprints", response_model=SprintResponse, status_code=status.HTTP_201_CREATED)
-def create_sprint(payload: SprintCreate, db: Session = Depends(get_db)):
-    name = " ".join(payload.name.split())
-    if not name:
-        raise HTTPException(status_code=422, detail="Sprint name cannot be blank")
-    if payload.end_date <= date.today():
-        raise HTTPException(status_code=422, detail="Sprint end date must be after today")
-    if db.scalar(select(Sprint).where(Sprint.name == name)) is not None:
-        raise HTTPException(status_code=409, detail="A sprint with this name already exists")
-    sprint = Sprint(name=name, end_date=payload.end_date)
-    db.add(sprint)
-    db.commit()
-    db.refresh(sprint)
-    return sprint
 
 
 @app.get("/api/aims", response_model=List[AimResponse])
@@ -273,8 +239,6 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
 
 @app.post("/api/todos", response_model=TodoResponse, status_code=status.HTTP_201_CREATED)
 def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
-    if payload.sprint_id is not None and db.get(Sprint, payload.sprint_id) is None:
-        raise HTTPException(status_code=422, detail="Sprint does not exist")
     if payload.aim_id is not None and db.get(Aim, payload.aim_id) is None:
         raise HTTPException(status_code=422, detail="Aim does not exist")
     validate_schedule(payload.start_time, payload.end_time)
@@ -282,7 +246,6 @@ def create_todo(payload: TodoCreate, db: Session = Depends(get_db)) -> Todo:
     todo = Todo(
         title=clean_title(payload.title),
         description=payload.description.strip(),
-        sprint_id=payload.sprint_id,
         aim_id=payload.aim_id,
         start_time=payload.start_time,
         end_time=payload.end_time,
@@ -314,9 +277,6 @@ def update_todo(todo_id: int, payload: TodoUpdate, db: Session = Depends(get_db)
         changes["description"] = changes["description"].strip()
     if "completed" in changes and changes["completed"] is None:
         raise HTTPException(status_code=422, detail="Completed cannot be null")
-    if changes.get("sprint_id") is not None and "sprint_id" in changes:
-        if db.get(Sprint, changes["sprint_id"]) is None:
-            raise HTTPException(status_code=422, detail="Sprint does not exist")
     if changes.get("aim_id") is not None and "aim_id" in changes:
         if db.get(Aim, changes["aim_id"]) is None:
             raise HTTPException(status_code=422, detail="Aim does not exist")

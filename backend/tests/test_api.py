@@ -84,40 +84,6 @@ def test_rejects_blank_title():
     assert response.status_code == 422
 
 
-def test_named_sprints_require_a_future_end_date():
-    with TestClient(app) as client:
-        assert client.get("/api/sprints").json() == []
-        end_date = (date.today() + timedelta(days=14)).isoformat()
-        created = client.post("/api/sprints", json={"name": "Launch", "end_date": end_date})
-        assert created.status_code == 201
-        assert created.json()["name"] == "Launch"
-        assert created.json()["end_date"] == end_date
-        assert len(client.get("/api/sprints").json()) == 1
-        rejected = client.post(
-            "/api/sprints", json={"name": "Past", "end_date": date.today().isoformat()}
-        )
-        assert rejected.status_code == 422
-
-
-def test_task_can_be_assigned_to_sprint():
-    with TestClient(app) as client:
-        sprint = client.post(
-            "/api/sprints",
-            json={
-                "name": "Delivery",
-                "end_date": (date.today() + timedelta(days=7)).isoformat(),
-            },
-        ).json()
-        todo = client.post(
-            "/api/todos", json={"title": "Ship", "sprint_id": sprint["id"]}
-        )
-        assert todo.status_code == 201
-        assert todo.json()["sprint_id"] == sprint["id"]
-        assert client.patch(
-            f"/api/todos/{todo.json()['id']}", json={"sprint_id": None}
-        ).json()["sprint_id"] is None
-
-
 def test_existing_workspace_is_migrated_with_current_task_fields():
     Base.metadata.drop_all(bind=engine)
     with engine.begin() as connection:

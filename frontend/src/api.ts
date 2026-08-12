@@ -3,7 +3,6 @@ export type Todo = {
   title: string
   description: string
   completed: boolean
-  sprint_id: number | null
   aim_id: number | null
   start_time: string | null
   end_time: string | null
@@ -32,7 +31,6 @@ export type TodoItemInput = {
 export type TodoInput = {
   title: string
   description: string
-  sprint_id: number | null
   aim_id: number | null
   start_time: string | null
   end_time: string | null
@@ -70,13 +68,6 @@ export type TaskCommandResult = {
   source: string
 }
 
-export type Sprint = {
-  id: number
-  name: string
-  end_date: string
-  created_at: string
-}
-
 export type Aim = {
   id: number
   name: string
@@ -106,9 +97,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   list: () => request<Todo[]>('/api/todos'),
   listTodoItems: () => request<TodoItem[]>('/api/todo-items'),
-  listSprints: () => request<Sprint[]>('/api/sprints'),
-  createSprint: (name: string, endDate: string) =>
-    request<Sprint>('/api/sprints', { method: 'POST', body: JSON.stringify({ name, end_date: endDate }) }),
   listAims: () => request<Aim[]>('/api/aims'),
   createAim: (name: string, description: string) =>
     request<Aim>('/api/aims', { method: 'POST', body: JSON.stringify({ name, description }) }),
@@ -119,7 +107,7 @@ export const api = {
     request<TaskCommandResult>('/api/task-commands', { method: 'POST', body: JSON.stringify({ text, loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }) }),
   create: (input: TodoInput) =>
     request<Todo>('/api/todos', { method: 'POST', body: JSON.stringify(input) }),
-  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'sprint_id' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) =>
+  update: (id: number, changes: Partial<Pick<Todo, 'title' | 'description' | 'completed' | 'is_running' | 'aim_id' | 'start_time' | 'end_time' | 'expected_duration_minutes' | 'dependency_ids'>> & { todo_items?: TodoItemInput[] }) =>
     request<Todo>(`/api/todos/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),

@@ -1,8 +1,8 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from typing import List, Optional
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Table, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -24,7 +24,6 @@ class Todo(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_running: Mapped[bool] = mapped_column(Boolean, default=False)
-    sprint_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sprints.id"), nullable=True)
     aim_id: Mapped[Optional[int]] = mapped_column(ForeignKey("aims.id"), nullable=True)
     start_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -33,7 +32,6 @@ class Todo(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )
-    sprint: Mapped[Optional["Sprint"]] = relationship(foreign_keys=[sprint_id])
     aim: Mapped[Optional["Aim"]] = relationship(foreign_keys=[aim_id], back_populates="tasks")
     dependencies: Mapped[List["Todo"]] = relationship(
         secondary=todo_dependencies,
@@ -58,16 +56,6 @@ class TodoItem(Base):
     estimated_duration_minutes: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     task: Mapped["Todo"] = relationship(back_populates="todo_items")
-
-
-class Sprint(Base):
-    __tablename__ = "sprints"
-    __table_args__ = (UniqueConstraint("name", name="uq_sprints_name"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), index=True)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
 class Aim(Base):

@@ -12,8 +12,6 @@ A full-stack life-planning application with a FastAPI/SQLite backend and a React
 - Add detailed descriptions and notes to tasks
 - Break tasks into named todo items with estimated time and chat-friendly `$ID` references
 - Track visible task IDs, schedules, and expected duration
-- Create multiple named sprints with future end dates
-- Assign tasks to sprints and select a sprint-scoped timeline from the sidebar
 - Create aims from the dashboard header and track their task completion progress
 - Assign tasks to aims from the task form, by dragging, or with `#task` and `@aim` Chat commands
 - Link tasks through searchable dependencies
@@ -138,8 +136,6 @@ npm run build
 | `GET` | `/api/todos` | List todos |
 | `GET` | `/api/todo-items` | List todo items and their task assignments |
 | `GET` | `/api/workspace` | Show the active workspace |
-| `GET` | `/api/sprints` | List named sprints |
-| `POST` | `/api/sprints` | Create a named sprint with a future end date |
 | `GET` | `/api/aims` | List aims |
 | `POST` | `/api/aims` | Create an aim |
 | `POST` | `/api/task-analysis` | Detect task fields and clarification questions from text |
