@@ -112,6 +112,8 @@ export const api = {
   listAims: () => request<Aim[]>('/api/aims'),
   createAim: (name: string, description: string) =>
     request<Aim>('/api/aims', { method: 'POST', body: JSON.stringify({ name, description }) }),
+  updateAim: (id: number, name: string, description: string) =>
+    request<Aim>(`/api/aims/${id}`, { method: 'PATCH', body: JSON.stringify({ name, description }) }),
   analyzeTask: (text: string, answers: Record<string, string> = {}) =>
     request<TaskAnalysis>('/api/task-analysis', { method: 'POST', body: JSON.stringify({ text, answers }) }),
   taskAnalysisConfig: () => request<TaskAnalysisConfig>('/api/task-analysis/config'),

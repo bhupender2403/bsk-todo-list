@@ -19,6 +19,7 @@ from .schemas import (
     SprintCreate,
     SprintResponse,
     AimCreate,
+    AimUpdate,
     AimResponse,
     TodoCreate,
     TodoResponse,
@@ -176,6 +177,18 @@ def create_aim(payload: AimCreate, db: Session = Depends(get_db)):
     name = clean_title(payload.name)
     aim = Aim(name=name, description=payload.description.strip())
     db.add(aim)
+    db.commit()
+    db.refresh(aim)
+    return aim
+
+
+@app.patch("/api/aims/{aim_id}", response_model=AimResponse)
+def update_aim(aim_id: int, payload: AimUpdate, db: Session = Depends(get_db)):
+    aim = db.get(Aim, aim_id)
+    if aim is None:
+        raise HTTPException(status_code=404, detail="Aim not found")
+    aim.name = clean_title(payload.name)
+    aim.description = payload.description.strip()
     db.commit()
     db.refresh(aim)
     return aim

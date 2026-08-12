@@ -121,6 +121,11 @@ class AimCreate(BaseModel):
     description: str = Field(default="", max_length=5000)
 
 
+class AimUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=5000)
+
+
 class AimResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

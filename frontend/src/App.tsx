@@ -37,6 +37,10 @@ export default function App() {
   const [aimDescription, setAimDescription] = useState('')
   const [pendingAimName, setPendingAimName] = useState(false)
   const [dashboardMode, setDashboardMode] = useState<'tasks' | 'aims'>('tasks')
+  const [loadedAimId, setLoadedAimId] = useState<number | null>(null)
+  const [loadedTaskId, setLoadedTaskId] = useState<number | null>(null)
+  const [contextAimDraft, setContextAimDraft] = useState<{ name: string; description: string } | null>(null)
+  const [contextTaskDraft, setContextTaskDraft] = useState<{ title: string; description: string; aim_id: number | null; expected_duration_minutes: number | null } | null>(null)
   const [selectedSprintId, setSelectedSprintId] = useState<number | null>(null)
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null)
   const [sprintDropActive, setSprintDropActive] = useState(false)
@@ -134,19 +138,10 @@ export default function App() {
     return todos.flatMap((todo) => todo.todo_items.map((item) => ({ item, todo })))
       .filter(({ item }) => String(item.id).includes(todoItemReferenceQuery)).slice(0, 8)
   }, [todos, todoItemReferenceQuery])
-  const chatRelated = useMemo(() => {
-    const text = `${chatMessages.map((message) => message.text).join(' ')} ${chatInput}`
-    const taskIds = new Set(Array.from(text.matchAll(/#(\d+)/g), (match) => Number(match[1])))
-    const aimIds = new Set(Array.from(text.matchAll(/@(\d+)/g), (match) => Number(match[1])))
-    const itemIds = new Set(Array.from(text.matchAll(/\$(\d+)/g), (match) => Number(match[1])))
-    return {
-      tasks: todos.filter((todo) => taskIds.has(todo.id)),
-      aims: aims.filter((aim) => aimIds.has(aim.id)),
-      items: todos.flatMap((todo) => todo.todo_items.map((item) => ({ item, todo }))).filter(({ item }) => itemIds.has(item.id)),
-    }
-  }, [aims, chatInput, chatMessages, todos])
-
   const selectedTodo = todos.find((todo) => todo.id === selectedId) ?? null
+  const loadedAim = aims.find((aim) => aim.id === loadedAimId) ?? null
+  const loadedTask = todos.find((todo) => todo.id === loadedTaskId) ?? null
+  const aimContextTasks = loadedAimId === null ? [] : todos.filter((todo) => todo.aim_id === loadedAimId)
   const statusCounts = useMemo(() => todos.reduce(
     (counts, todo) => ({ ...counts, [getTodoStatus(todo)]: counts[getTodoStatus(todo)] + 1 }),
     { pending: 0, scheduled: 0, running: 0, completed: 0 },
@@ -175,6 +170,23 @@ export default function App() {
     event.preventDefault()
     const text = chatInput.trim()
     if (!text) return
+    const loadRequest = text.match(/^load(?:\s+@(\d+))?(?:\s+#(\d+))?$/i)
+    if (loadRequest && (loadRequest[1] || loadRequest[2])) {
+      const aimId = loadRequest[1] ? Number(loadRequest[1]) : null
+      const taskId = loadRequest[2] ? Number(loadRequest[2]) : null
+      if ((aimId !== null && !aims.some((aim) => aim.id === aimId)) || (taskId !== null && !todos.some((todo) => todo.id === taskId))) {
+        setError('The requested aim or task was not found')
+        return
+      }
+      setLoadedAimId(aimId)
+      setLoadedTaskId(taskId)
+      setContextAimDraft(null)
+      setContextTaskDraft(null)
+      setChatInput('')
+      const messageId = Date.now()
+      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Loaded ${[aimId && `@${aimId}`, taskId && `#${taskId}`].filter(Boolean).join(' and ')}.` }])
+      return
+    }
     if (pendingAimName) {
       const messageId = Date.now()
       setPendingAimName(false)
@@ -281,6 +293,44 @@ export default function App() {
     setTodoItemName('')
     setTodoItemHours('')
     setAddModalOpen(true)
+  }
+
+  function loadDetectedTaskInContext(task: DetectedTask) {
+    const suggestion = task.analysis.suggestion
+    setLoadedTaskId(null)
+    setContextTaskDraft({
+      title: suggestion.title,
+      description: suggestion.description,
+      aim_id: loadedAimId,
+      expected_duration_minutes: (suggestion.expected_duration_days * 1440 + suggestion.expected_duration_hours * 60) || null,
+    })
+  }
+
+  async function saveContextAim() {
+    if (!contextAimDraft?.name.trim() && loadedAimId === null) return
+    try {
+      const current = loadedAimId === null ? null : aims.find((aim) => aim.id === loadedAimId)
+      const values = contextAimDraft ?? { name: current?.name ?? '', description: current?.description ?? '' }
+      const saved = loadedAimId === null
+        ? await api.createAim(values.name, values.description)
+        : await api.updateAim(loadedAimId, values.name, values.description)
+      setAims((items) => loadedAimId === null ? [...items, saved] : items.map((item) => item.id === saved.id ? saved : item))
+      setLoadedAimId(saved.id)
+      setContextAimDraft(null)
+    } catch (reason) { showError(reason) }
+  }
+
+  async function saveContextTask() {
+    if (!contextTaskDraft?.title.trim()) return
+    try {
+      const existing = loadedTaskId === null ? null : todos.find((todo) => todo.id === loadedTaskId)
+      const saved = existing
+        ? await api.update(existing.id, contextTaskDraft)
+        : await api.create({ ...contextTaskDraft, sprint_id: null, start_time: null, end_time: null, dependency_ids: [], is_running: false, todo_items: [] })
+      setTodos((items) => existing ? items.map((item) => item.id === saved.id ? saved : item) : [saved, ...items])
+      setLoadedTaskId(saved.id)
+      setContextTaskDraft(null)
+    } catch (reason) { showError(reason) }
   }
 
   function insertTaskReference(todo: Todo) {
@@ -852,7 +902,7 @@ export default function App() {
               {task && <button className="inline-task-marker" onClick={() => openDetectedTask(task)} title={`Review task ${task.number}`}>
                 <span>＋</span><b>{task.number}</b>
               </button>}
-              {message.aimDraft && <button className="inline-task-marker aim-marker" onClick={() => openAimModal(message.aimDraft)} title="Review aim"><span>＋</span><b>@</b></button>}
+              {message.aimDraft && <button className="inline-task-marker aim-marker" onClick={() => { setLoadedAimId(null); setContextAimDraft(message.aimDraft!); setLoadedTaskId(null) }} title="Review aim"><span>＋</span><b>@</b></button>}
             </div>
           })}
           {analyzing && <div className="chat-message assistant"><p>Detecting task details…</p></div>}
@@ -896,15 +946,24 @@ export default function App() {
         </form>
       </aside>
       <section className="chat-related" aria-label="Content related to chat">
-        <div className="chat-related-heading"><p className="eyebrow">Conversation context</p><h2>Related</h2></div>
-        {readyDetectedTasks.length === 0 && chatRelated.tasks.length === 0 && chatRelated.aims.length === 0 && chatRelated.items.length === 0 ? (
-          <div className="chat-related-empty"><span>⌁</span><h3>Related content appears here</h3><p>Mention a task with #, an aim with @, or a todo item with $.</p></div>
-        ) : <div className="chat-related-content">
-          {readyDetectedTasks.length > 0 && <section><h3>Ready to create</h3>{readyDetectedTasks.map((task) => <button className="related-card detected" onClick={() => openDetectedTask(task)} key={task.number}><b>＋ {task.number}</b><strong>{task.analysis.suggestion.title}</strong><small>Review detected task</small></button>)}</section>}
-          {chatRelated.tasks.length > 0 && <section><h3>Tasks</h3>{chatRelated.tasks.map((todo) => <button className="related-card" onClick={() => openTaskDetail(todo.id)} key={todo.id}><b>#{todo.id}</b><strong>{todo.title}</strong><small>{getTodoStatus(todo)} · {formatDuration(todo.expected_duration_minutes)}</small></button>)}</section>}
-          {chatRelated.aims.length > 0 && <section><h3>Aims</h3>{chatRelated.aims.map((aim) => <article className="related-card" key={aim.id}><b>@{aim.id}</b><strong>{aim.name}</strong><small>{todos.filter((todo) => todo.aim_id === aim.id).length} tasks</small></article>)}</section>}
-          {chatRelated.items.length > 0 && <section><h3>Todo items</h3>{chatRelated.items.map(({ item, todo }) => <button className="related-card" onClick={() => openTaskDetail(todo.id)} key={item.id}><b>${item.id}</b><strong>{item.name}</strong><small>#{todo.id} {todo.title} · {formatDuration(item.estimated_duration_minutes)}</small></button>)}</section>}
-        </div>}
+        <div className="chat-related-heading"><p className="eyebrow">Loaded context</p><h2>Aim & task</h2><small>Try “load @2 #2”</small></div>
+        <div className="context-editor">
+          <section className="context-section aim-context">
+            <div className="context-title"><h3>Aim</h3><select value={loadedAimId ?? ''} onChange={(event) => { const id = event.target.value ? Number(event.target.value) : null; setLoadedAimId(id); setContextAimDraft(null); if (loadedTaskId && todos.find((todo) => todo.id === loadedTaskId)?.aim_id !== id) setLoadedTaskId(null) }}><option value="">New aim</option>{aims.map((aim) => <option value={aim.id} key={aim.id}>@{aim.id} {aim.name}</option>)}</select></div>
+            <input value={contextAimDraft?.name ?? loadedAim?.name ?? ''} onChange={(event) => setContextAimDraft({ name: event.target.value, description: contextAimDraft?.description ?? loadedAim?.description ?? '' })} placeholder="Aim name" />
+            <textarea value={contextAimDraft?.description ?? loadedAim?.description ?? ''} onChange={(event) => setContextAimDraft({ name: contextAimDraft?.name ?? loadedAim?.name ?? '', description: event.target.value })} placeholder="Aim description" rows={2} />
+            <button className="context-save" onClick={saveContextAim} disabled={!(contextAimDraft?.name ?? loadedAim?.name ?? '').trim()}>{loadedAimId === null ? 'Create aim' : 'Update aim'}</button>
+            {loadedAimId !== null && loadedTaskId === null && <div className="aim-context-tasks"><h4>Tasks under this aim</h4>{aimContextTasks.length ? aimContextTasks.map((todo) => <button onClick={() => { setLoadedTaskId(todo.id); setContextTaskDraft(null) }} key={todo.id}><b>#{todo.id}</b><span>{todo.title}</span><small>{getTodoStatus(todo)}</small></button>) : <p>No tasks assigned.</p>}</div>}
+          </section>
+          <section className="context-section task-context">
+            <div className="context-title"><h3>Task</h3><select value={loadedTaskId ?? ''} onChange={(event) => { const id = event.target.value ? Number(event.target.value) : null; setLoadedTaskId(id); setContextTaskDraft(null); const task = todos.find((todo) => todo.id === id); if (task?.aim_id) setLoadedAimId(task.aim_id) }}><option value="">New task</option>{todos.map((todo) => <option value={todo.id} key={todo.id}>#{todo.id} {todo.title}</option>)}</select></div>
+            {readyDetectedTasks.length > 0 && <div className="detected-context-list">{readyDetectedTasks.map((task) => <button onClick={() => loadDetectedTaskInContext(task)} key={task.number}>＋ Load detected task {task.number}: {task.analysis.suggestion.title}</button>)}</div>}
+            <input value={contextTaskDraft?.title ?? loadedTask?.title ?? ''} onChange={(event) => setContextTaskDraft({ title: event.target.value, description: contextTaskDraft?.description ?? loadedTask?.description ?? '', aim_id: contextTaskDraft?.aim_id ?? loadedTask?.aim_id ?? loadedAimId, expected_duration_minutes: contextTaskDraft?.expected_duration_minutes ?? loadedTask?.expected_duration_minutes ?? null })} placeholder="Task name" />
+            <textarea value={contextTaskDraft?.description ?? loadedTask?.description ?? ''} onChange={(event) => setContextTaskDraft({ title: contextTaskDraft?.title ?? loadedTask?.title ?? '', description: event.target.value, aim_id: contextTaskDraft?.aim_id ?? loadedTask?.aim_id ?? loadedAimId, expected_duration_minutes: contextTaskDraft?.expected_duration_minutes ?? loadedTask?.expected_duration_minutes ?? null })} placeholder="Task description" rows={3} />
+            <label>Estimated hours<input type="number" min="0" step="0.25" value={(contextTaskDraft?.expected_duration_minutes ?? loadedTask?.expected_duration_minutes ?? 0) / 60 || ''} onChange={(event) => setContextTaskDraft({ title: contextTaskDraft?.title ?? loadedTask?.title ?? '', description: contextTaskDraft?.description ?? loadedTask?.description ?? '', aim_id: contextTaskDraft?.aim_id ?? loadedTask?.aim_id ?? loadedAimId, expected_duration_minutes: Number(event.target.value) * 60 || null })} /></label>
+            <button className="context-save" onClick={saveContextTask} disabled={!(contextTaskDraft?.title ?? loadedTask?.title ?? '').trim()}>{loadedTaskId === null ? 'Create task' : 'Update task'}</button>
+          </section>
+        </div>
       </section>
       </section>}
 
