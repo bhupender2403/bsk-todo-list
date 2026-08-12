@@ -716,8 +716,7 @@ export default function App() {
             <h1>{chatOpen ? 'Task assistant' : dashboardMode === 'tasks' ? 'Task dependencies' : 'Aims'}</h1>
           </div>
           <div className="header-actions">
-            <button className="view-toggle" onClick={() => { setChatOpen(false); setDashboardMode((current) => current === 'tasks' ? 'aims' : 'tasks') }}>{dashboardMode === 'tasks' ? 'Aims' : 'Tasks'}</button>
-            <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
+            <div className="view-switcher" aria-label="Dashboard view"><button className={dashboardMode === 'tasks' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('tasks') }}>Tasks</button><button className={dashboardMode === 'aims' && !chatOpen ? 'active' : ''} onClick={() => { setChatOpen(false); setDashboardMode('aims') }}>Aims</button></div>
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
               <span aria-hidden="true">◌</span> Chat
             </button>
@@ -773,6 +772,7 @@ export default function App() {
           {error && <p className="error" role="alert">{error}</p>}
 
           {dashboardMode === 'tasks' ? <>
+            <div className="task-dashboard-toolbar"><div><p className="eyebrow">Schedule</p><strong>Task timeline</strong></div><button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button></div>
             <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} />
           </> : <section className="aim-dashboard">
             <div className="aim-dashboard-toolbar"><label className="aim-search"><span aria-hidden="true">⌕</span><input value={aimQuery} onChange={(event) => setAimQuery(event.target.value)} placeholder="Search aims by name, description, or @ID…" aria-label="Search aims" />{aimQuery && <button onClick={() => setAimQuery('')} aria-label="Clear aim search">×</button>}</label><button className="header-add-task" onClick={() => openAimModal()}><span aria-hidden="true">＋</span> Add aim</button></div>

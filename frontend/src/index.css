@@ -62,6 +62,9 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .debug-toggle { width: 31px; height: 31px; justify-content: center; padding: 0; font-size: 14px; }
 .debug-toggle.active { border-color: #718675; background: #e8eee5; color: #465e4b; }
 .view-toggle { background: #edf0e9; }
+.view-switcher { display: flex; gap: 3px; padding: 3px; border: 1px solid #d9ddd5; border-radius: 10px; background: #edf0e9; }
+.view-switcher button { padding: 4px 9px; border: 0; border-radius: 7px; background: transparent; color: #697269; font-size: 10px; font-weight: 600; }
+.view-switcher button.active { background: white; color: #405345; box-shadow: 0 2px 7px rgba(53,65,55,.09); }
 .sidebar-toggle:hover { background: #f1f3ee; }
 .header-add-task { border-color: #465e4b; background: #465e4b; color: white; box-shadow: 0 5px 14px rgba(70,94,75,.14); }
 .header-add-task:hover { background: #3c5341; }
@@ -228,6 +231,10 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .aim-modal textarea { min-height: 88px; resize: vertical; }
 
 .aim-dashboard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 16px; overflow: auto; }
+.task-dashboard-toolbar { position: sticky; top: 0; z-index: 6; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 8px 10px; border: 1px solid #dfe3db; border-radius: 10px; background: rgba(247,249,244,.96); box-shadow: 0 5px 14px rgba(47,57,49,.05); }
+.task-dashboard-toolbar > div { display: grid; gap: 1px; }
+.task-dashboard-toolbar .eyebrow { margin: 0; font-size: 8px; }
+.task-dashboard-toolbar strong { color: #4a544c; font-size: 12px; }
 .aim-dashboard-toolbar { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .aim-search { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #d9ddd5; border-radius: 10px; background: rgba(255,255,255,.96); color: #8b928b; box-shadow: 0 5px 14px rgba(47,57,49,.06); }
 .aim-dashboard-toolbar > .header-add-task { flex: 0 0 auto; height: 38px; }
