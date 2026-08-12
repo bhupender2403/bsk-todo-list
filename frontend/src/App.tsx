@@ -151,6 +151,11 @@ export default function App() {
   const loadedAim = aims.find((aim) => aim.id === loadedAimId) ?? null
   const loadedTask = todos.find((todo) => todo.id === loadedTaskId) ?? null
   const aimContextTasks = loadedAimId === null ? [] : todos.filter((todo) => todo.aim_id === loadedAimId)
+  const contextTaskHasChanges = (() => {
+    if (!contextTaskDraft) return false
+    if (!loadedTask) return Boolean(contextTaskDraft.title.trim())
+    return JSON.stringify(contextTaskDraft) !== JSON.stringify(contextDraftFor(loadedTask))
+  })()
   const statusCounts = useMemo(() => todos.reduce(
     (counts, todo) => ({ ...counts, [getTodoStatus(todo)]: counts[getTodoStatus(todo)] + 1 }),
     { pending: 0, scheduled: 0, running: 0, completed: 0 },
@@ -197,6 +202,19 @@ export default function App() {
     if (/^clear$/i.test(text)) {
       trace('Decision', 'local · deterministic', 'Clear Chat and reset loaded context')
       clearChat()
+      return
+    }
+    if (/^update$/i.test(text)) {
+      const messageId = Date.now()
+      setChatInput('')
+      if (!contextTaskHasChanges || loadedTaskId === null) {
+        trace('Decision', 'local · task editor', 'No pending task changes to update')
+        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'There are no task changes to update.' }])
+        return
+      }
+      trace('Decision', 'local · task editor', { action: 'save pending changes', task_id: loadedTaskId })
+      const updated = await saveContextTask()
+      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: updated ? `Updated task #${loadedTaskId}.` : `Could not update task #${loadedTaskId}.` }])
       return
     }
     if (/^(?:create|add|make)(?:\s+an?|\s+new)?\s+aim\b|^update(?:\s+aim|\s+@\d+)\b/i.test(text)) {
@@ -436,8 +454,8 @@ export default function App() {
     setError('')
   }
 
-  async function saveContextTask() {
-    if (!contextTaskDraft?.title.trim()) return
+  async function saveContextTask(): Promise<boolean> {
+    if (!contextTaskDraft?.title.trim()) return false
     try {
       const existing = loadedTaskId === null ? null : todos.find((todo) => todo.id === loadedTaskId)
       const saved = existing
@@ -446,7 +464,8 @@ export default function App() {
       setTodos((items) => existing ? items.map((item) => item.id === saved.id ? saved : item) : [saved, ...items])
       setLoadedTaskId(saved.id)
       setContextTaskDraft(null)
-    } catch (reason) { showError(reason) }
+      return true
+    } catch (reason) { showError(reason); return false }
   }
 
   function insertTaskReference(todo: Todo) {
@@ -1091,7 +1110,7 @@ export default function App() {
             <div className="context-form-row three"><label>Start date<input type="date" value={(contextTaskDraft?.start_time ?? loadedTask?.start_time ?? '').slice(0, 10)} onChange={(event) => changeContextTask({ start_time: event.target.value ? `${event.target.value}T00:00:00` : null })} /></label><label>End date<input type="date" value={(contextTaskDraft?.end_time ?? loadedTask?.end_time ?? '').slice(0, 10)} onChange={(event) => changeContextTask({ end_time: event.target.value ? `${event.target.value}T00:00:00` : null })} /></label><label>Estimated hours<input type="number" min="0" step="0.25" value={(contextTaskDraft?.expected_duration_minutes ?? loadedTask?.expected_duration_minutes ?? 0) / 60 || ''} onChange={(event) => changeContextTask({ expected_duration_minutes: Number(event.target.value) * 60 || null })} /></label></div>
             <div className="context-dependencies"><label htmlFor="context-dependency-input">Dependencies</label><div><input id="context-dependency-input" list="context-dependency-options" value={contextDependencyQuery} onChange={(event) => setContextDependencyQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addContextDependency() } }} placeholder="Search by task name or #ID…" /><datalist id="context-dependency-options">{todos.filter((todo) => todo.id !== loadedTaskId && !(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).includes(todo.id)).map((todo) => <option value={`#${todo.id} ${todo.title}`} key={todo.id} />)}</datalist><button onClick={addContextDependency} disabled={!contextDependencyQuery.trim()}>Add</button></div>{(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).length > 0 && <div className="context-dependency-chips">{(contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).map((id) => <button onClick={() => changeContextTask({ dependency_ids: (contextTaskDraft?.dependency_ids ?? loadedTask?.dependency_ids ?? []).filter((value) => value !== id) })} key={id}>#{id} {taskName(id)} ×</button>)}</div>}</div>
             <div className="context-items"><span>Todo items</span>{(contextTaskDraft?.todo_items ?? loadedTask?.todo_items ?? []).map((item, index) => <div key={item.id ?? index}><b>{item.id ? `$${item.id}` : 'New'}</b><input value={item.name} onChange={(event) => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).map((value, itemIndex) => itemIndex === index ? { ...value, name: event.target.value } : value) })} /><input type="number" min="0" step="0.25" value={item.estimated_duration_minutes / 60 || ''} onChange={(event) => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).map((value, itemIndex) => itemIndex === index ? { ...value, estimated_duration_minutes: Number(event.target.value) * 60 } : value) })} /><button onClick={() => changeContextTask({ todo_items: (contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items).filter((_, itemIndex) => itemIndex !== index) })}>×</button></div>)}<button className="add-context-item" onClick={() => changeContextTask({ todo_items: [...(contextTaskDraft?.todo_items ?? contextDraftFor(loadedTask).todo_items), { name: 'New todo item', estimated_duration_minutes: 0 }] })}>＋ Add todo item</button></div>
-            <button className="context-save" onClick={saveContextTask} disabled={!(contextTaskDraft?.title ?? loadedTask?.title ?? '').trim()}>{loadedTaskId === null ? 'Create task' : 'Update task'}</button>
+            {loadedTaskId === null ? <button className="context-save" onClick={saveContextTask} disabled={!contextTaskDraft?.title.trim()}>Create task</button> : contextTaskHasChanges && <button className="context-save" onClick={saveContextTask}>Update task</button>}
           </section>
         </div>
       </section>
