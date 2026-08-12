@@ -103,6 +103,7 @@ class TaskCommandResponse(BaseModel):
     handled: bool
     message: Optional[str] = None
     todo: Optional[TodoResponse] = None
+    aim: Optional["AimResponse"] = None
     source: str
 
 

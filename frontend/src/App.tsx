@@ -246,23 +246,6 @@ export default function App() {
       setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Loaded ${[aimId && `@${aimId}`, taskId && `#${taskId}`].filter(Boolean).join(' and ')}.` }])
       return
     }
-    const aimDescriptionUpdate = text.match(/^update(?:\s+aim|\s+@(\d+))\s+description\s+to\s+["“]?(.+?)["”]?\.?$/i)
-    if (aimDescriptionUpdate) {
-      trace('Decision', 'local · deterministic', { action: 'edit aim description', aim: aimDescriptionUpdate[1] ?? loadedAimId })
-      const aimId = aimDescriptionUpdate[1] ? Number(aimDescriptionUpdate[1]) : loadedAimId
-      const aim = aims.find((item) => item.id === aimId)
-      const messageId = Date.now()
-      setChatInput('')
-      if (!aim) {
-        setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: 'Load an aim first or include its @ID, for example: update @2 description to …' }])
-        return
-      }
-      const description = aimDescriptionUpdate[2].trim()
-      setLoadedAimId(aim.id)
-      setContextAimDraft({ name: aim.name, description })
-      setChatMessages((current) => [...current, { id: messageId, role: 'user', text }, { id: messageId + 1, role: 'assistant', text: `Updated the @${aim.id} description in the editor. Select “Update aim” to save it.` }])
-      return
-    }
     if (pendingAimName) {
       trace('Decision', 'local · clarification', 'Used reply as the pending aim name')
       const messageId = Date.now()
@@ -292,6 +275,9 @@ export default function App() {
       try {
         let commandText = text
         const looksLikeUpdate = /^(?:update|set|add|assign|depends?\s+on)\b/i.test(text)
+        if (/^update\s+aim\s+(?:name|description)\s+to\s+/i.test(text) && loadedAimId !== null) {
+          commandText = text.replace(/^update\s+aim\s+/i, `update @${loadedAimId} `)
+        }
         if (looksLikeUpdate && !/#\d+/.test(text) && loadedTaskId !== null) {
           if (/^update\s+name\s+to\s+/i.test(text)) commandText = text.replace(/^update\s+/i, `update #${loadedTaskId} `)
           else if (/^set\s+(?:estimated time|start time)\s+to\s+/i.test(text)) commandText = text.replace(/^set\s+/i, `set #${loadedTaskId} `)
@@ -301,18 +287,24 @@ export default function App() {
         trace('Request', taskAnalysisConfig?.openai_configured ? `OpenAI · ${taskAnalysisConfig.model}` : 'local fallback', { endpoint: '/api/task-commands', text: commandText, context: { loaded_task_id: loadedTaskId, loaded_aim_id: loadedAimId }, instructions: 'Use loaded entities for ambiguous updates; ignore them for explicit creation.' })
         const result = await api.runTaskCommand(commandText, loadedTaskId, loadedAimId)
         trace('Response', result.source === 'local' ? 'local fallback' : `OpenAI · ${result.source}`, result)
-        if (result.handled && result.todo && result.message) {
+        if (result.handled && result.message && (result.todo || result.aim)) {
           setChatInput('')
           setChatMessages((current) => [
             ...current,
             { id: messageId, role: 'user', text },
             { id: messageId + 1, role: 'assistant', text: result.message!, source: result.source },
           ])
-          setTodos((current) => current.map((todo) => todo.id === result.todo!.id ? result.todo! : todo))
-          setLoadedTaskId(result.todo.id)
-          setLoadedAimId(result.todo.aim_id)
-          setContextTaskDraft(contextDraftFor(result.todo))
-          setContextAimDraft(null)
+          if (result.todo) {
+            setTodos((current) => current.map((todo) => todo.id === result.todo!.id ? result.todo! : todo))
+            setLoadedTaskId(result.todo.id)
+            setLoadedAimId(result.todo.aim_id)
+            setContextTaskDraft(contextDraftFor(result.todo))
+            setContextAimDraft(null)
+          } else if (result.aim) {
+            setAims((current) => current.map((aim) => aim.id === result.aim!.id ? result.aim! : aim))
+            setLoadedAimId(result.aim.id)
+            setContextAimDraft({ name: result.aim.name, description: result.aim.description })
+          }
           return
         }
       } catch (reason) {

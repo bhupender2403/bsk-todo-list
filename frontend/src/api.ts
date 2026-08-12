@@ -67,6 +67,7 @@ export type TaskCommandResult = {
   handled: boolean
   message: string | null
   todo: Todo | null
+  aim: Aim | null
   source: string
 }
 

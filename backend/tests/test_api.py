@@ -318,8 +318,30 @@ def test_task_command_declines_non_mutation(monkeypatch):
         "handled": False,
         "message": None,
         "todo": None,
+        "aim": None,
         "source": "local",
     }
+
+
+def test_existing_task_and_aim_can_be_updated_by_commands(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with TestClient(app) as client:
+        aim = client.post("/api/aims", json={"name": "Website"}).json()
+        todo = client.post("/api/todos", json={"title": "Publish"}).json()
+
+        task_result = client.post(
+            "/api/task-commands",
+            json={"text": f'update #{todo["id"]} description to Ready for launch'},
+        ).json()
+        assert task_result["handled"] is True
+        assert task_result["todo"]["description"] == "Ready for launch"
+
+        aim_result = client.post(
+            "/api/task-commands",
+            json={"text": f'update @{aim["id"]} description to First public version'},
+        ).json()
+        assert aim_result["handled"] is True
+        assert aim_result["aim"]["description"] == "First public version"
 
 
 def test_tool_call_requires_hash_prefixed_task_ids():

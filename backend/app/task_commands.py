@@ -11,6 +11,9 @@ TASK_TOOLS = [
     {"type": "function", "function": {"name": "set_estimated_duration", "description": "Set a task's estimated duration in days and hours.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "days": {"type": "integer", "minimum": 0}, "hours": {"type": "integer", "minimum": 0}}, "required": ["task_id", "days", "hours"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "set_start_time", "description": "Set a task start time using a supported relative date.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "when": {"type": "string", "enum": ["now", "tomorrow", "three days from now"]}}, "required": ["task_id", "when"], "additionalProperties": False}}},
     {"type": "function", "function": {"name": "assign_task_to_aim", "description": "Assign an existing task referenced with # to an existing aim referenced with @.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "aim_id": {"type": "integer"}}, "required": ["task_id", "aim_id"], "additionalProperties": False}}},
+    {"type": "function", "function": {"name": "update_task_description", "description": "Update the description of an existing or loaded task.", "parameters": {"type": "object", "properties": {"task_id": {"type": "integer"}, "description": {"type": "string"}}, "required": ["task_id", "description"], "additionalProperties": False}}},
+    {"type": "function", "function": {"name": "rename_aim", "description": "Change the name of an existing or loaded aim.", "parameters": {"type": "object", "properties": {"aim_id": {"type": "integer"}, "name": {"type": "string"}}, "required": ["aim_id", "name"], "additionalProperties": False}}},
+    {"type": "function", "function": {"name": "update_aim_description", "description": "Update the description of an existing or loaded aim.", "parameters": {"type": "object", "properties": {"aim_id": {"type": "integer"}, "description": {"type": "string"}}, "required": ["aim_id", "description"], "additionalProperties": False}}},
 ]
 
 
@@ -51,6 +54,10 @@ Never infer entity IDs from unprefixed numbers, dates, durations, positions, or 
 
 
 def _command_from_tool_call(name: str, arguments: Dict[str, object]) -> Optional[Dict[str, object]]:
+    if name == "rename_aim":
+        return {"action": "rename_aim", "aim_id": int(arguments["aim_id"]), "name": str(arguments["name"])}
+    if name == "update_aim_description":
+        return {"action": "describe_aim", "aim_id": int(arguments["aim_id"]), "description": str(arguments["description"])}
     task_id = int(arguments["task_id"])
     if name == "add_dependency":
         return {"action": "dependency", "task_id": task_id, "dependency_id": int(arguments["dependency_id"])}
@@ -62,6 +69,8 @@ def _command_from_tool_call(name: str, arguments: Dict[str, object]) -> Optional
         return _start_command(task_id, str(arguments["when"]))
     if name == "assign_task_to_aim":
         return {"action": "aim", "task_id": task_id, "aim_id": int(arguments["aim_id"])}
+    if name == "update_task_description":
+        return {"action": "describe_task", "task_id": task_id, "description": str(arguments["description"])}
     return None
 
 
@@ -80,7 +89,7 @@ def _has_valid_entity_context(text: str, command: Dict[str, object], loaded_task
     aim_ids = {int(value) for key, value in command.items() if key == "aim_id"}
     task_valid = all(re.search(rf"#\s*{task_id}\b", text) or (task_id == loaded_task_id and command.get("task_id") == task_id) for task_id in task_ids)
     aim_valid = all(re.search(rf"@\s*{aim_id}\b", text) or aim_id == loaded_aim_id for aim_id in aim_ids)
-    return bool(task_ids) and task_valid and aim_valid
+    return bool(task_ids or aim_ids) and task_valid and aim_valid
 
 
 def _start_command(task_id: int, when: str) -> Dict[str, object]:
@@ -111,6 +120,18 @@ def parse_task_command(text: str) -> Optional[Dict[str, object]]:
             "task_id": int(match["task"]),
             "title": match["title"].strip(),
         }
+
+    match = re.fullmatch(r"update #(?P<task>\d+) description to [\"“]?(?P<description>.+?)[\"”]?", command, re.I)
+    if match:
+        return {"action": "describe_task", "task_id": int(match["task"]), "description": match["description"].strip()}
+
+    match = re.fullmatch(r"update @(?P<aim>\d+) name to [\"“]?(?P<name>.+?)[\"”]?", command, re.I)
+    if match:
+        return {"action": "rename_aim", "aim_id": int(match["aim"]), "name": match["name"].strip()}
+
+    match = re.fullmatch(r"update @(?P<aim>\d+) description to [\"“]?(?P<description>.+?)[\"”]?", command, re.I)
+    if match:
+        return {"action": "describe_aim", "aim_id": int(match["aim"]), "description": match["description"].strip()}
 
     match = re.fullmatch(
         r"set #(?P<task>\d+) estimated time to"

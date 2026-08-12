@@ -240,9 +240,24 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
     if command is None:
         return {"handled": False, "source": source}
 
+    action = command["action"]
+    if action in {"rename_aim", "describe_aim"}:
+        aim_id = int(command["aim_id"])
+        aim = db.get(Aim, aim_id)
+        if aim is None:
+            raise HTTPException(status_code=404, detail="Aim not found")
+        if action == "rename_aim":
+            aim.name = clean_title(str(command["name"]))
+            message = f"Renamed aim @{aim_id} to “{aim.name}”."
+        else:
+            aim.description = str(command["description"]).strip()
+            message = f"Updated the description for aim @{aim_id}."
+        db.commit()
+        db.refresh(aim)
+        return {"handled": True, "message": message, "aim": aim, "source": source}
+
     task_id = int(command["task_id"])
     todo = find_todo(task_id, db)
-    action = command["action"]
     if action == "dependency":
         dependency_id = int(command["dependency_id"])
         dependency_ids = list(dict.fromkeys([*todo.dependency_ids, dependency_id]))
@@ -256,6 +271,9 @@ def run_task_command(payload: TaskCommandRequest, db: Session = Depends(get_db))
         minutes = int(command["minutes"])
         todo = update_todo(task_id, TodoUpdate(expected_duration_minutes=minutes), db)
         message = f"Set the estimated time for #{task_id} to {minutes // 1440} days and {(minutes % 1440) // 60} hours."
+    elif action == "describe_task":
+        todo = update_todo(task_id, TodoUpdate(description=str(command["description"])), db)
+        message = f"Updated the description for #{task_id}."
     elif action == "aim":
         aim_id = int(command["aim_id"])
         if db.get(Aim, aim_id) is None:
