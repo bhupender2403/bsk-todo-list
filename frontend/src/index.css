@@ -242,7 +242,39 @@ h1 { margin: 0; font-family: 'Newsreader', serif; font-size: clamp(36px, 4vw, 46
 .task-dashboard-toolbar > div { display: grid; gap: 1px; }
 .task-dashboard-toolbar .eyebrow { margin: 0; font-size: 8px; }
 .task-dashboard-toolbar strong { color: #4a544c; font-size: 12px; }
-.workspace-dashboard { min-height: calc(100% - 20px); border: 1px solid #e0e3dc; border-radius: 16px; background: rgba(255,255,255,.45); }
+.workspace-planner { min-height: calc(100% - 20px); padding: 16px; border: 1px solid #e0e3dc; border-radius: 16px; background: rgba(255,255,255,.62); }
+.workspace-planner > header { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
+.workspace-planner > header h2 { margin: 0; font-family: 'Newsreader', serif; font-size: 27px; }
+.workspace-planner > header small { color: #8b928c; font-size: 9px; }
+.workspace-planner-scroll { overflow-x: auto; border: 1px solid #dfe3dc; border-radius: 12px; background: #fbfcf9; }
+.workspace-planner-grid { min-width: 1320px; }
+.workspace-time-corner { width: 175px; height: 56px; display: grid; align-items: end; padding: 0 11px 9px; color: #8b928c; font-size: 9px; text-transform: uppercase; }
+.workspace-hours { position: relative; height: 56px; margin: -56px 0 0 175px; border-left: 1px solid #dfe3dc; border-bottom: 1px solid #dfe3dc; background: #f4f6f1; }
+.workspace-hours span { position: absolute; bottom: 9px; color: #778078; font-size: 8px; transform: translateX(-50%); white-space: nowrap; }
+.workspace-hours span::after { content: ''; position: absolute; top: 15px; left: 50%; width: 1px; height: 7px; background: #aeb7ad; }
+.workspace-task-row { display: grid; grid-template-columns: 175px minmax(0, 1fr); min-height: 72px; border-bottom: 1px solid #e5e8e2; }
+.workspace-task-row:last-child { border-bottom: 0; }
+.workspace-task-label { min-width: 0; display: grid; align-content: center; gap: 2px; padding: 9px 11px; border-right: 1px solid #dfe3dc; }
+.workspace-task-label b { color: #7d887f; font-size: 9px; }
+.workspace-task-label strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-task-label small { color: #969d97; font-size: 8px; }
+.workspace-time-track { position: relative; min-height: 72px; background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(100% / 24 - 1px), #e6e9e3 calc(100% / 24 - 1px), #e6e9e3 calc(100% / 24)); }
+.workspace-todo-block { position: absolute; top: 14px; min-width: 28px; height: 43px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; overflow: hidden; padding: 5px 10px; border: 1px solid #839b87; border-radius: 7px; background: #dfeadf; color: #405346; box-shadow: 0 3px 9px rgba(58,75,61,.12); cursor: grab; }
+.workspace-todo-block:active { cursor: grabbing; }
+.workspace-todo-block b { font-size: 8px; }
+.workspace-todo-block > span:not(.resize-handle) { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-todo-block small { font-size: 7px; white-space: nowrap; }
+.resize-handle { position: absolute; top: 0; bottom: 0; width: 7px; background: rgba(75,99,81,.18); cursor: ew-resize; }
+.resize-handle.start { left: 0; }
+.resize-handle.end { right: 0; }
+.workspace-planner-empty { grid-column: 1 / -1; padding: 65px 20px; color: #929991; text-align: center; font-size: 11px; }
+.workspace-unscheduled { margin-top: 14px; }
+.workspace-unscheduled h3 { margin: 0 0 7px; color: #7f8780; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.workspace-unscheduled > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.workspace-unscheduled > div > div { display: grid; grid-template-columns: auto 1fr; gap: 2px 7px; min-width: 180px; padding: 8px 10px; border: 1px solid #dce1da; border-radius: 8px; background: #f4f6f1; cursor: grab; }
+.workspace-unscheduled b { grid-row: span 2; color: #718075; font-size: 9px; }
+.workspace-unscheduled span { font-size: 10px; }
+.workspace-unscheduled small { color: #909791; font-size: 8px; }
 .aim-dashboard-toolbar { position: sticky; top: 0; z-index: 12; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .aim-search { min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #d9ddd5; border-radius: 10px; background: rgba(255,255,255,.96); color: #8b928b; box-shadow: 0 5px 14px rgba(47,57,49,.06); }
 .aim-dashboard-toolbar > .header-add-task { flex: 0 0 auto; height: 38px; }

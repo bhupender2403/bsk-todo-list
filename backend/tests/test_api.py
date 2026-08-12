@@ -65,6 +65,19 @@ def test_todo_lifecycle():
         assert changed_items[0]["name"] == "Build signed package"
         assert len(client.get("/api/todo-items").json()) == 1
 
+        scheduled = client.patch(
+            f"/api/todos/{todo['id']}",
+            json={"todo_items": [{
+                "id": first_item["id"],
+                "name": "Build signed package",
+                "estimated_duration_minutes": 60,
+                "scheduled_start": "2026-08-12T09:30:00",
+                "scheduled_duration_minutes": 90,
+            }]},
+        ).json()["todo_items"][0]
+        assert scheduled["scheduled_start"].startswith("2026-08-12T09:30:00")
+        assert scheduled["scheduled_duration_minutes"] == 90
+
         listed = client.get("/api/todos")
         assert listed.status_code == 200
         assert len(listed.json()) == 1

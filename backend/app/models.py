@@ -55,6 +55,8 @@ class TodoItem(Base):
     task_id: Mapped[int] = mapped_column(ForeignKey("todos.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     estimated_duration_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    scheduled_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    scheduled_duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     task: Mapped["Todo"] = relationship(back_populates="todo_items")
 

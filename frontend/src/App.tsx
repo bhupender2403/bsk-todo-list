@@ -1,6 +1,7 @@
 import { FormEvent, PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { api, getTodoStatus, type Aim, type TaskAnalysis, type TaskAnalysisConfig, type Todo, type TodoItemInput } from './api'
 import TaskDag from './TaskDag'
+import WorkspacePlanner from './WorkspacePlanner'
 
 type Filter = 'all' | 'active' | 'completed'
 type ChatMessage = { id: number; role: 'user' | 'assistant'; text: string; taskNumber?: number; source?: string }
@@ -245,7 +246,7 @@ export default function App() {
       }
       trace('Decision', 'local · todo item parser', { task_id: loadedTaskId, items: newItems })
       try {
-        const saved = await api.update(task.id, { todo_items: [...task.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })), ...newItems] })
+        const saved = await api.update(task.id, { todo_items: [...task.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes, scheduled_start: item.scheduled_start, scheduled_duration_minutes: item.scheduled_duration_minutes })), ...newItems] })
         setTodos((current) => current.map((todo) => todo.id === saved.id ? saved : todo))
         setContextTaskDraft(contextDraftFor(saved))
         trace('Response', 'local · API update', { task_id: saved.id, todo_items: saved.todo_items })
@@ -428,7 +429,7 @@ export default function App() {
       start_time: todo.start_time, end_time: todo.end_time, expected_duration_minutes: todo.expected_duration_minutes,
       dependency_ids: todo.dependency_ids, is_running: todo.is_running,
       is_picked: todo.is_picked,
-      todo_items: todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })),
+      todo_items: todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes, scheduled_start: item.scheduled_start, scheduled_duration_minutes: item.scheduled_duration_minutes })),
     } : { title: '', description: '', aim_id: loadedAimId, start_time: null, end_time: null, expected_duration_minutes: null, dependency_ids: [], is_running: false, is_picked: false, todo_items: [] }
   }
 
@@ -603,7 +604,7 @@ export default function App() {
     setDurationHours(duration ? String(Math.floor((duration % 1440) / 60)) : '')
     setDependencyQuery('')
     setDependencyIds(todo.dependency_ids)
-    setTaskItems(todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes })))
+    setTaskItems(todo.todo_items.map((item) => ({ id: item.id, name: item.name, estimated_duration_minutes: item.estimated_duration_minutes, scheduled_start: item.scheduled_start, scheduled_duration_minutes: item.scheduled_duration_minutes })))
     setTodoItemName('')
     setTodoItemHours('')
     setDetailModalOpen(false)
@@ -809,7 +810,7 @@ export default function App() {
                 })}</div>
               </article>
             })}
-          </section> : <section className="workspace-dashboard" aria-label="Workspace dashboard" />}
+          </section> : <WorkspacePlanner todos={todos} onTaskUpdated={(updated) => setTodos((current) => current.map((todo) => todo.id === updated.id ? updated : todo))} onError={showError} />}
         </section>
 
         {!chatOpen && dashboardMode !== 'workspace' && <aside className="risk-sidebar" aria-label="Tasks at risk">
