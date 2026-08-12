@@ -717,7 +717,6 @@ export default function App() {
           </div>
           <div className="header-actions">
             <button className="view-toggle" onClick={() => { setChatOpen(false); setDashboardMode((current) => current === 'tasks' ? 'aims' : 'tasks') }}>{dashboardMode === 'tasks' ? 'Aims' : 'Tasks'}</button>
-            {dashboardMode === 'aims' && <button className="header-add-task" onClick={() => openAimModal()}><span aria-hidden="true">＋</span> Add aim</button>}
             <button className="header-add-task" onClick={openAddModal}><span aria-hidden="true">＋</span> Add task</button>
             <button className="chat-toggle" onClick={() => setChatOpen((current) => !current)} aria-expanded={chatOpen}>
               <span aria-hidden="true">◌</span> Chat
@@ -776,7 +775,7 @@ export default function App() {
           {dashboardMode === 'tasks' ? <>
             <TaskDag todos={dashboardTodos} selectedId={selectedId} onSelect={setSelectedId} onOpen={openTaskDetail} />
           </> : <section className="aim-dashboard">
-            <label className="aim-search"><span aria-hidden="true">⌕</span><input value={aimQuery} onChange={(event) => setAimQuery(event.target.value)} placeholder="Search aims by name, description, or @ID…" aria-label="Search aims" />{aimQuery && <button onClick={() => setAimQuery('')} aria-label="Clear aim search">×</button>}</label>
+            <div className="aim-dashboard-toolbar"><label className="aim-search"><span aria-hidden="true">⌕</span><input value={aimQuery} onChange={(event) => setAimQuery(event.target.value)} placeholder="Search aims by name, description, or @ID…" aria-label="Search aims" />{aimQuery && <button onClick={() => setAimQuery('')} aria-label="Clear aim search">×</button>}</label><button className="header-add-task" onClick={() => openAimModal()}><span aria-hidden="true">＋</span> Add aim</button></div>
             {aims.length === 0 ? <div className="aim-empty"><h2>No aims yet</h2><p>Create an aim, then drag tasks onto it.</p></div> : visibleAims.length === 0 ? <div className="aim-empty"><h2>No matching aims</h2><p>Try a different search.</p></div> : visibleAims.map((aim) => {
               const aimTasks = todos.filter((todo) => todo.aim_id === aim.id)
               const completed = aimTasks.filter((todo) => getTodoStatus(todo) === 'completed').length
